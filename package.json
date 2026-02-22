@@ -1,0 +1,38 @@
+{
+  "name": "netk",
+  "version": "0.1.0",
+  "description": "New Eden Toolkit - The ultimate EVE Online multitool platform",
+  "private": true,
+  "packageManager": "npm@10.9.2",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "dotenv -e .env -- turbo run dev",
+    "build": "dotenv -e .env -- turbo run build",
+    "lint": "turbo run lint",
+    "dev:gateway": "dotenv -e .env -- turbo run dev --filter=gateway",
+    "dev:flipper": "dotenv -e .env -- turbo run dev --filter=flipper",
+    "dev:ratting": "dotenv -e .env -- turbo run dev --filter=ratting",
+    "dev:rock-radar": "dotenv -e .env -- turbo run dev --filter=rock-radar",
+    "dev:appraisal": "dotenv -e .env -- turbo run dev --filter=appraisal",
+    "dev:fleet": "dotenv -e .env -- turbo run dev --filter=fleet",
+    "dev:market": "dotenv -e .env -- turbo run dev --filter=market",
+    "security:check-api": "node scripts/check-api-security.mjs",
+    "market-fetcher": "dotenv -e .env -- npm run scheduler -w @netk/market-fetcher",
+    "market-fetcher:watch": "dotenv -e .env -- npm run watch -w @netk/market-fetcher",
+    "market-fetch": "dotenv -e .env -- npm run fetch -w @netk/market-fetcher",
+    "clean": "turbo run clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "dotenv-cli": "^11.0.0",
+    "turbo": "^2.3.3",
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "graphology": "^0.26.0",
+    "graphology-types": "^0.24.8",
+    "sigma": "^3.0.2"
+  }
+}

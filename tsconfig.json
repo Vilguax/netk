@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [],
+  "references": [
+    { "path": "./apps/gateway" },
+    { "path": "./apps/flipper" },
+    { "path": "./packages/types" },
+    { "path": "./packages/auth" },
+    { "path": "./packages/themes" },
+    { "path": "./packages/calculations" },
+    { "path": "./packages/eve-api" }
+  ]
+}

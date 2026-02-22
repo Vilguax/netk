@@ -1,0 +1,10 @@
+{
+  "extends": "@netk/tsconfig/library.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "paths": {
+      "@netk/types": ["../types/src"]
+    }
+  },
+  "include": ["src/**/*"]
+}

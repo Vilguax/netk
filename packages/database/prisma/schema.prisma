@@ -1,0 +1,397 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===========================================
+// CORE USER ACCOUNT (NETK account, not EVE)
+// ===========================================
+model User {
+  id            String   @id @default(uuid()) @db.Uuid
+  email         String?  @unique
+  passwordHash  String?  @map("password_hash")
+  emailVerified Boolean  @default(false) @map("email_verified")
+  isAdmin       Boolean  @default(false) @map("is_admin")
+  totpSecret    String?  @map("totp_secret")
+  totpEnabled   Boolean  @default(false) @map("totp_enabled")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  oauthAccounts   OAuthAccount[]
+  eveCharacters   EveCharacter[]
+  preferences     UserPreferences?
+  connectionLogs  ConnectionLog[]
+  appraisals      Appraisal[]
+
+  @@map("users")
+}
+
+// ===========================================
+// OAUTH PROVIDERS (Google, Discord)
+// ===========================================
+model OAuthAccount {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  provider   String   // "google", "discord"
+  providerId String   @map("provider_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerId])
+  @@map("oauth_accounts")
+}
+
+// ===========================================
+// LINKED EVE CHARACTERS
+// ===========================================
+model EveCharacter {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  characterId      BigInt   @unique @map("character_id")
+  characterName    String   @map("character_name")
+  corporationId    BigInt   @map("corporation_id")
+  accessToken      String   @map("access_token") @db.Text // AES-256-GCM encrypted
+  refreshToken     String   @map("refresh_token") @db.Text // AES-256-GCM encrypted
+  tokenExpires     DateTime @map("token_expires")
+  scopes           String[] @default([])
+  isMain           Boolean  @default(false) @map("is_main")
+  isServiceAccount Boolean  @default(false) @map("is_service_account") // Service account for admin operations
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user                User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  marketOrders        MarketCharacterOrder[]
+  marketTransactions  MarketTransaction[]
+  marketProfitEntries MarketProfitEntry[]
+
+  @@map("eve_characters")
+}
+
+// ===========================================
+// USER PREFERENCES (extensible)
+// ===========================================
+model UserPreferences {
+  id       String  @id @default(uuid()) @db.Uuid
+  userId   String  @unique @map("user_id") @db.Uuid
+  theme    String? // Future use
+  locale   String  @default("fr")
+  settings Json    @default("{}") @db.JsonB
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
+}
+
+// ===========================================
+// CONNECTION LOGS (Admin audit)
+// ===========================================
+model ConnectionLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String?  @map("user_id") @db.Uuid
+  ipAddress     String   @map("ip_address")
+  userAgent     String?  @map("user_agent") @db.Text
+  success       Boolean
+  failureReason String?  @map("failure_reason")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("connection_logs")
+}
+
+// ===========================================
+// EMAIL VERIFICATION TOKENS
+// ===========================================
+model VerificationToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String   @unique // HMAC-SHA256 hash of the raw token
+  type      String   // "email_verification", "password_reset"
+  expiresAt DateTime @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("verification_tokens")
+}
+
+// ===========================================
+// EVE ITEM TYPES (cache from ESI)
+// ===========================================
+model EveType {
+  id           Int      @id // EVE type_id
+  name         String
+  groupId      Int      @map("group_id")
+  categoryId   Int      @map("category_id")
+  volume       Float    @default(0)
+  packagedVolume Float? @map("packaged_volume")
+  portionSize  Int      @default(1) @map("portion_size")
+  iconId       Int?     @map("icon_id")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  marketPrices MarketPrice[]
+  priceHistory MarketPriceHistory[]
+
+  @@map("eve_types")
+}
+
+// ===========================================
+// MARKET PRICES (current, updated every 3h)
+// ===========================================
+model MarketPrice {
+  id         String   @id @default(uuid()) @db.Uuid
+  typeId     Int      @map("type_id")
+  regionId   BigInt   @map("region_id") // 10000002 = The Forge (Jita), etc.
+  buyPrice   Decimal  @map("buy_price") @db.Decimal(20, 2) // Best buy order
+  sellPrice  Decimal  @map("sell_price") @db.Decimal(20, 2) // Best sell order
+  buyVolume  BigInt   @map("buy_volume") @default(0)
+  sellVolume BigInt   @map("sell_volume") @default(0)
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  eveType EveType @relation(fields: [typeId], references: [id])
+
+  @@unique([typeId, regionId])
+  @@index([regionId])
+  @@map("market_prices")
+}
+
+// ===========================================
+// MARKET PRICE HISTORY (for analysis)
+// ===========================================
+model MarketPriceHistory {
+  id         String   @id @default(uuid()) @db.Uuid
+  typeId     Int      @map("type_id")
+  regionId   BigInt   @map("region_id")
+  buyPrice   Decimal  @map("buy_price") @db.Decimal(20, 2)
+  sellPrice  Decimal  @map("sell_price") @db.Decimal(20, 2)
+  buyVolume  BigInt   @map("buy_volume") @default(0)
+  sellVolume BigInt   @map("sell_volume") @default(0)
+  recordedAt DateTime @map("recorded_at") @default(now())
+
+  // Relations
+  eveType EveType @relation(fields: [typeId], references: [id])
+
+  @@index([typeId, regionId, recordedAt])
+  @@index([recordedAt])
+  @@map("market_price_history")
+}
+
+// ===========================================
+// MARKET FETCH JOBS (track background job runs)
+// ===========================================
+model MarketFetchJob {
+  id          String   @id @default(uuid()) @db.Uuid
+  regionId    BigInt   @map("region_id")
+  status      String   // "pending", "running", "completed", "failed"
+  itemsCount  Int      @default(0) @map("items_count")
+  errorMessage String? @map("error_message") @db.Text
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([regionId, status])
+  @@map("market_fetch_jobs")
+}
+
+// ===========================================
+// APPRAISALS
+// ===========================================
+model Appraisal {
+  id           String   @id @default(cuid()) // Short ID for URL (cuid = compact)
+  userId       String?  @map("user_id") @db.Uuid // Nullable for anonymous
+  regionId     BigInt   @map("region_id")
+  rawInput     String   @map("raw_input") @db.Text // Original paste
+  items        Json     @db.JsonB // Parsed items: [{typeId, name, quantity}]
+  pricingData  Json     @map("pricing_data") @db.JsonB // Prices at creation: {typeId: {buy, sell}}
+  totalBuy     Decimal  @map("total_buy") @db.Decimal(20, 2)
+  totalSell    Decimal  @map("total_sell") @db.Decimal(20, 2)
+  totalVolume  Decimal  @map("total_volume") @db.Decimal(20, 2) @default(0)
+  itemCount    Int      @map("item_count") @default(0)
+  revision     Int      @default(1)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  expiresAt    DateTime @map("expires_at") // 1 year from creation
+  lastPriceCheck DateTime? @map("last_price_check") // When prices were last refreshed
+
+  // Relations
+  user      User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  revisions AppraisalRevision[]
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([expiresAt])
+  @@map("appraisals")
+}
+
+// ===========================================
+// APPRAISAL REVISIONS (price change tracking)
+// ===========================================
+model AppraisalRevision {
+  id           String   @id @default(uuid()) @db.Uuid
+  appraisalId  String   @map("appraisal_id")
+  revision     Int
+  pricingData  Json     @map("pricing_data") @db.JsonB // Prices at this revision
+  totalBuy     Decimal  @map("total_buy") @db.Decimal(20, 2)
+  totalSell    Decimal  @map("total_sell") @db.Decimal(20, 2)
+  priceChanges Json     @map("price_changes") @db.JsonB // Diff from previous: {typeId: {buyDiff, sellDiff, buyPct, sellPct}}
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Relations
+  appraisal Appraisal @relation(fields: [appraisalId], references: [id], onDelete: Cascade)
+
+  @@unique([appraisalId, revision])
+  @@index([appraisalId])
+  @@map("appraisal_revisions")
+}
+
+// ===========================================
+// SDE: REPROCESS MATERIALS (invTypeMaterials)
+// ===========================================
+model ReprocessMaterial {
+  id             Int @id @default(autoincrement())
+  typeId         Int @map("type_id")           // Item to reprocess (ore, module, etc.)
+  materialTypeId Int @map("material_type_id")  // Material obtained (Tritanium, etc.)
+  quantity       Int                            // Base quantity (before skills/efficiency)
+
+  @@unique([typeId, materialTypeId])
+  @@index([typeId])
+  @@index([materialTypeId])
+  @@map("reprocess_materials")
+}
+
+// ===========================================
+// SDE: COMPRESSION MAPPINGS (ore -> compressed)
+// ===========================================
+model CompressionMapping {
+  id               Int    @id @default(autoincrement())
+  oreTypeId        Int    @unique @map("ore_type_id")       // Regular ore type ID
+  compressedTypeId Int    @map("compressed_type_id")        // Compressed ore type ID
+  oreName          String @map("ore_name")                  // For easy lookup
+  compressedName   String @map("compressed_name")
+  ratio            Int    @default(100)                     // Compression ratio (100:1)
+  groupId          Int    @map("group_id")                  // Ore group (Veldspar, Scordite, etc.)
+
+  @@index([compressedTypeId])
+  @@index([groupId])
+  @@map("compression_mappings")
+}
+
+// ===========================================
+// SDE: EVE GROUPS (for filtering ores, minerals)
+// ===========================================
+model EveGroup {
+  id         Int    @id                    // EVE group_id
+  name       String
+  categoryId Int    @map("category_id")    // 4 = Materials, 25 = Asteroid
+
+  @@index([categoryId])
+  @@map("eve_groups")
+}
+
+// ===========================================
+// MARKET CHARACTER ORDERS (cache ESI, refresh 5min)
+// ===========================================
+model MarketCharacterOrder {
+  id            String   @id @default(uuid()) @db.Uuid
+  characterId   BigInt   @map("character_id")
+  orderId       BigInt   @unique @map("order_id") // ESI order ID
+  typeId        Int      @map("type_id")
+  regionId      BigInt   @map("region_id")
+  locationId    BigInt   @map("location_id")
+  isBuyOrder    Boolean  @map("is_buy_order")
+  price         Decimal  @db.Decimal(20, 2)
+  volumeTotal   Int      @map("volume_total")
+  volumeRemain  Int      @map("volume_remain")
+  duration      Int      // days
+  issued        DateTime
+  minVolume     Int      @default(1) @map("min_volume")
+  state         String   @default("active") // active, cancelled, expired
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  character EveCharacter @relation(fields: [characterId], references: [characterId], onDelete: Cascade)
+
+  @@index([characterId])
+  @@index([characterId, state])
+  @@index([typeId])
+  @@map("market_character_orders")
+}
+
+// ===========================================
+// MARKET TRANSACTIONS (cache ESI, refresh 15min)
+// ===========================================
+model MarketTransaction {
+  id            String   @id @default(uuid()) @db.Uuid
+  characterId   BigInt   @map("character_id")
+  transactionId BigInt   @unique @map("transaction_id") // ESI transaction ID
+  typeId        Int      @map("type_id")
+  quantity      Int
+  unitPrice     Decimal  @map("unit_price") @db.Decimal(20, 2)
+  isBuy         Boolean  @map("is_buy")
+  stationId     BigInt   @map("station_id")
+  journalRefId  BigInt   @map("journal_ref_id")
+  date          DateTime
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  // Relations
+  character    EveCharacter     @relation(fields: [characterId], references: [characterId], onDelete: Cascade)
+  buyProfits   MarketProfitEntry[] @relation("BuyTransaction")
+  sellProfits  MarketProfitEntry[] @relation("SellTransaction")
+
+  @@index([characterId])
+  @@index([characterId, date])
+  @@index([typeId])
+  @@map("market_transactions")
+}
+
+// ===========================================
+// MARKET PROFIT ENTRIES (FIFO matching)
+// ===========================================
+model MarketProfitEntry {
+  id                 String   @id @default(uuid()) @db.Uuid
+  characterId        BigInt   @map("character_id")
+  typeId             Int      @map("type_id")
+  buyTransactionId   String?  @map("buy_transaction_id") @db.Uuid
+  sellTransactionId  String   @map("sell_transaction_id") @db.Uuid
+  quantity           Int
+  buyPrice           Decimal  @map("buy_price") @db.Decimal(20, 2)
+  sellPrice          Decimal  @map("sell_price") @db.Decimal(20, 2)
+  taxes              Decimal  @db.Decimal(20, 2) @default(0)
+  profit             Decimal  @db.Decimal(20, 2)
+  matchedAt          DateTime @default(now()) @map("matched_at")
+
+  // Relations
+  character       EveCharacter      @relation(fields: [characterId], references: [characterId], onDelete: Cascade)
+  buyTransaction  MarketTransaction? @relation("BuyTransaction", fields: [buyTransactionId], references: [id])
+  sellTransaction MarketTransaction  @relation("SellTransaction", fields: [sellTransactionId], references: [id])
+
+  @@index([characterId])
+  @@index([characterId, typeId])
+  @@index([matchedAt])
+  @@map("market_profit_entries")
+}
+
+// ===========================================
+// SOLAR SYSTEMS (from EVE SDE, for jump range)
+// ===========================================
+model SolarSystem {
+  systemId       Int    @id @map("system_id")
+  name           String
+  x              Float
+  y              Float
+  z              Float
+  securityStatus Float  @map("security_status")
+
+  @@map("solar_systems")
+}

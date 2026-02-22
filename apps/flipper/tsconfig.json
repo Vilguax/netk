@@ -1,0 +1,20 @@
+{
+  "extends": "@netk/tsconfig/nextjs.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"],
+      "@netk/auth": ["../../packages/auth/src"],
+      "@netk/calculations": ["../../packages/calculations/src"],
+      "@netk/eve-api": ["../../packages/eve-api/src"],
+      "@netk/themes": ["../../packages/themes/src"],
+      "@netk/types": ["../../packages/types/src"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": ["node_modules"]
+}

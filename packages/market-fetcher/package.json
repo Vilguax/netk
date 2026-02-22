@@ -1,0 +1,26 @@
+{
+  "name": "@netk/market-fetcher",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/scheduler.ts",
+    "watch": "tsx watch src/scheduler.ts",
+    "start": "node dist/scheduler.js",
+    "fetch": "tsx src/cli.ts",
+    "scheduler": "tsx src/scheduler.ts"
+  },
+  "dependencies": {
+    "@netk/database": "*",
+    "@netk/types": "*",
+    "ioredis": "^5.4.1"
+  },
+  "devDependencies": {
+    "typescript": "^5",
+    "tsx": "^4.7.0",
+    "@types/node": "^20"
+  }
+}
