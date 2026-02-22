@@ -1,0 +1,11 @@
+FROM node:20-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY package.json package-lock.json ./
+COPY apps/*/package.json apps/*/
+COPY packages/*/package.json packages/*/
+RUN npm ci
+
+COPY . .
+CMD ["npm", "run", "scheduler", "-w", "@netk/market-fetcher"]

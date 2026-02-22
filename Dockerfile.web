@@ -1,0 +1,25 @@
+FROM node:20-alpine AS base
+WORKDIR /app
+
+FROM base AS deps
+COPY package.json package-lock.json ./
+COPY apps/*/package.json apps/*/
+COPY packages/*/package.json packages/*/
+RUN npm ci
+
+FROM deps AS builder
+COPY . .
+ARG APP_DIR
+RUN test -n "$APP_DIR"
+RUN sh -c "cd \"$APP_DIR\" && npx next build"
+
+FROM base AS runner
+ENV NODE_ENV=production
+COPY --from=builder /app /app
+RUN npm prune --omit=dev
+ARG APP_DIR
+ARG APP_PORT
+ENV APP_DIR=$APP_DIR
+ENV PORT=$APP_PORT
+EXPOSE 3000
+CMD ["sh", "-c", "cd \"$APP_DIR\" && npx next start -p \"$PORT\""]
