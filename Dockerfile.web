@@ -5,7 +5,7 @@ FROM base AS deps
 COPY package.json package-lock.json ./
 COPY apps/*/package.json apps/*/
 COPY packages/*/package.json packages/*/
-RUN npm ci
+RUN npm install
 
 FROM deps AS builder
 COPY . .
