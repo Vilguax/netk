@@ -3,8 +3,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 COPY package.json package-lock.json ./
-COPY apps/*/package.json apps/*/
-COPY packages/*/package.json packages/*/
+COPY apps ./apps
+COPY packages ./packages
+COPY tsconfig.json tsconfig.base.json turbo.json ./
 RUN npm install
 
 COPY . .

@@ -3,12 +3,12 @@ WORKDIR /app
 
 FROM base AS deps
 COPY package.json package-lock.json ./
-COPY apps/*/package.json apps/*/
-COPY packages/*/package.json packages/*/
+COPY apps ./apps
+COPY packages ./packages
+COPY tsconfig.json tsconfig.base.json turbo.json ./
 RUN npm install
 
 FROM deps AS builder
-COPY . .
 ARG APP_DIR
 RUN test -n "$APP_DIR"
 RUN sh -c "cd \"$APP_DIR\" && npx next build"
