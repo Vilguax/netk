@@ -15,11 +15,12 @@ export async function GET() {
     }
 
     const characters = await getUserCharacters(session.user.id);
+    type UserCharacter = (typeof characters)[number];
 
     // Transform for JSON serialization (BigInt -> string)
-    const serialized = characters.map((char) => {
+    const serialized = characters.map((char: UserCharacter) => {
       const missingScopes = EVE_DEFAULT_SCOPES.filter(
-        (s) => !char.scopes.includes(s)
+        (s: string) => !char.scopes.includes(s)
       );
       return {
         id: char.id,

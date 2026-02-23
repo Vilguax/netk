@@ -3,7 +3,7 @@ set -eu
 
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 ENV_FILE="${ENV_FILE:-.env.production}"
-SERVICES="market-fetcher gateway flipper ratting rock-radar appraisal fleet market"
+SERVICES="gateway market-fetcher flipper ratting rock-radar appraisal fleet market"
 
 for service in $SERVICES; do
   echo "==> Building $service"
