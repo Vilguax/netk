@@ -61,6 +61,7 @@ export async function GET() {
         createdAt: true,
       },
     });
+    type RecentJob = (typeof recentJobs)[number];
 
     // Get last successful fetch per region
     const lastSuccessfulByRegion = await prisma.marketFetchJob.groupBy({
@@ -76,7 +77,7 @@ export async function GET() {
     ]);
 
     // Get running job if any
-    const runningJob = recentJobs.find(job => job.status === "running");
+    const runningJob = recentJobs.find((job: RecentJob) => job.status === "running");
 
     // Region ID to name mapping
     const regionNames: Record<string, string> = {
@@ -88,7 +89,7 @@ export async function GET() {
     };
 
     // Format jobs for response
-    const formattedJobs = recentJobs.map(job => ({
+    const formattedJobs = recentJobs.map((job: RecentJob) => ({
       id: job.id,
       region: regionNames[job.regionId.toString()] || `Unknown (${job.regionId})`,
       regionId: job.regionId.toString(),
