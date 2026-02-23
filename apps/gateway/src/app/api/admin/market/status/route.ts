@@ -69,6 +69,7 @@ export async function GET() {
       where: { status: "completed" },
       _max: { completedAt: true },
     });
+    type LastSuccessfulByRegionItem = (typeof lastSuccessfulByRegion)[number];
 
     // Get total types and prices in database
     const [typesCount, pricesCount] = await Promise.all([
@@ -104,7 +105,7 @@ export async function GET() {
     }));
 
     // Format last successful by region
-    const lastSuccessful = lastSuccessfulByRegion.map(item => ({
+    const lastSuccessful = lastSuccessfulByRegion.map((item: LastSuccessfulByRegionItem) => ({
       region: regionNames[item.regionId.toString()] || `Unknown (${item.regionId})`,
       regionId: item.regionId.toString(),
       lastFetch: item._max.completedAt?.toISOString(),
