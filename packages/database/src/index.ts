@@ -6,13 +6,3 @@ export type { PrismaClient } from "./client";
 // Import them directly:
 //   - "@netk/database/redis" for Redis (server-side only)
 //   - "@netk/database/encryption" for encryption (server-side only)
-
-// Re-export Prisma types for convenience
-export type {
-  User,
-  OAuthAccount,
-  EveCharacter,
-  UserPreferences,
-  ConnectionLog,
-  VerificationToken,
-} from "@prisma/client";
