@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 
 interface Character {
@@ -15,7 +15,7 @@ interface Character {
   linkedAt: string;
 }
 
-export default function CharactersPage() {
+function CharactersPageContent() {
   const searchParams = useSearchParams();
   const [characters, setCharacters] = useState<Character[]>([]);
   const [loading, setLoading] = useState(true);
@@ -292,5 +292,13 @@ export default function CharactersPage() {
         </ul>
       </div>
     </div>
+  );
+}
+
+export default function CharactersPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-slate-400">Chargement...</div>}>
+      <CharactersPageContent />
+    </Suspense>
   );
 }
