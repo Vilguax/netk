@@ -9,6 +9,8 @@ COPY tsconfig.json tsconfig.base.json turbo.json ./
 RUN npm install
 
 FROM deps AS builder
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_OPTIONS=--max-old-space-size=1536
 ARG APP_DIR
 RUN test -n "$APP_DIR"
 RUN sh -c "cd \"$APP_DIR\" && npx next build"
