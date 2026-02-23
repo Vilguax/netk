@@ -7,6 +7,7 @@ COPY apps ./apps
 COPY packages ./packages
 COPY tsconfig.json tsconfig.base.json turbo.json ./
 RUN npm install
+RUN npm run db:generate -w @netk/database
 
 COPY . .
 CMD ["npm", "run", "scheduler", "-w", "@netk/market-fetcher"]
