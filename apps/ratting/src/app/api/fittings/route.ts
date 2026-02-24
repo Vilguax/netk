@@ -1,5 +1,6 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { auth } from "@netk/auth";
+import { getCharacterAccessToken, getUserCharacters } from "@netk/auth/eve";
 
 interface FittingItem {
   type_id: number;
@@ -51,20 +52,38 @@ const IMPORTANT_ATTRIBUTES: Record<number, string> = {
 export async function GET(request: Request) {
   const session = await auth();
 
-  if (!session?.accessToken || !session?.characterId) {
-    return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Non authentifie" }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);
   const fittingId = searchParams.get("fitting_id");
 
+  let characterId = session.user.activeCharacterId;
+  if (!characterId) {
+    const userCharacters = await getUserCharacters(session.user.id);
+    characterId = userCharacters[0]?.characterId.toString();
+  }
+
+  if (!characterId) {
+    return NextResponse.json(
+      { error: "Aucun personnage actif" },
+      { status: 400 }
+    );
+  }
+
+  const accessToken = await getCharacterAccessToken(BigInt(characterId));
+  if (!accessToken) {
+    return NextResponse.json({ error: "Token EVE invalide" }, { status: 401 });
+  }
+
   try {
     // Fetch all saved fittings
     const fittingsRes = await fetch(
-      `https://esi.evetech.net/latest/characters/${session.characterId}/fittings/?datasource=tranquility`,
+      `https://esi.evetech.net/latest/characters/${characterId}/fittings/?datasource=tranquility`,
       {
         headers: {
-          Authorization: `Bearer ${session.accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
         },
       }
     );
@@ -82,7 +101,7 @@ export async function GET(request: Request) {
 
     // If specific fitting requested, get detailed info with module stats
     if (fittingId) {
-      const fitting = fittings.find((f) => f.fitting_id === parseInt(fittingId));
+      const fitting = fittings.find((f) => f.fitting_id === parseInt(fittingId, 10));
       if (!fitting) {
         return NextResponse.json({ error: "Fitting non trouve" }, { status: 404 });
       }
@@ -102,8 +121,8 @@ export async function GET(request: Request) {
             ),
           ]);
 
-          const typeInfo: TypeInfo = typeRes.ok ? await typeRes.json() : null;
-          const dogma: TypeDogma = dogmaRes.ok ? await dogmaRes.json() : null;
+          const typeInfo: TypeInfo | null = typeRes.ok ? await typeRes.json() : null;
+          const dogma: TypeDogma | null = dogmaRes.ok ? await dogmaRes.json() : null;
 
           // Extract important attributes
           const importantStats: Record<string, number> = {};
@@ -200,4 +219,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 }
-
