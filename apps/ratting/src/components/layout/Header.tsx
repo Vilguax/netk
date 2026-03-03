@@ -15,6 +15,8 @@ export function Header() {
   const firstSelectedChar = characters.find(
     (c) => c.characterId === selectedCharacterIds[0]
   );
+  const portraitCharacterId =
+    selectedCharacterIds[0] || session?.user?.activeCharacterId;
 
   return (
     <header
@@ -75,7 +77,7 @@ export function Header() {
             ) : (
               <>
                 <img
-                  src={`https://images.evetech.net/characters/${selectedCharacterIds[0] || session.characterId}/portrait?size=64`}
+                  src={`https://images.evetech.net/characters/${portraitCharacterId}/portrait?size=64`}
                   alt={firstSelectedChar?.characterName || session.user.name || "Avatar"}
                   className="w-10 h-10 rounded-full border-2"
                   style={{ borderColor: "var(--accent-green)" }}

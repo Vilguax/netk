@@ -93,15 +93,15 @@ interface CompressedItem {
   originalName: string;
   originalQuantity: number;
   originalVolume: number;
-  compressédTypeId: number;
-  compressédName: string;
-  compressédQuantity: number;
-  compressédVolume: number;
+  compressedTypeId: number;
+  compressedName: string;
+  compressedQuantity: number;
+  compressedVolume: number;
   ratio: number;
   originalSellPrice: number;
   originalSellTotal: number;
-  compressédSellPrice: number;
-  compressédSellTotal: number;
+  compressedSellPrice: number;
+  compressedSellTotal: number;
   priceDiff: number;
   priceDiffPct: number;
 }
@@ -111,11 +111,11 @@ interface CompressData {
   nonCompressible: AppraisedItem[];
   totals: {
     originalVolume: number;
-    compressédVolume: number;
+    compressedVolume: number;
     volumeSaved: number;
     volumeSavedPct: number;
     originalSell: number;
-    compressédSell: number;
+    compressedSell: number;
     priceDiff: number;
     priceDiffPct: number;
   };

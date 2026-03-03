@@ -67,7 +67,7 @@ interface AppraisalData {
   region: string;
   rawInput: string;
   revision: number;
-  révisions: Revision[];
+  revisions: Revision[];
   priceChanges: Record<string, PriceChange>;
   createdAt: string;
   updatedAt: string;

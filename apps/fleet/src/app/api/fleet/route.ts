@@ -282,9 +282,9 @@ export async function GET() {
           netkUserId: string;
           canJump: boolean;
           hasSkillScope: boolean;
-          jdcLevel?: number;
-          jumpRangeLY?: number;
-          reachableSystems?: number[];
+          jdcLevel: number | undefined;
+          jumpRangeLY: number | undefined;
+          reachableSystems: number[] | undefined;
         }> => r.status === "fulfilled"
       )
       .map((r) => r.value);
