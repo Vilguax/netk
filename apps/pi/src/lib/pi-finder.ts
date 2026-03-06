@@ -1,0 +1,226 @@
+// PI System Finder — utilities for finding compatible systems per product
+// Uses static data from /public/data/systems-planets.json
+
+import { ALL_PRODUCTS, P0_RESOURCES, buildChain, type PlanetType, type PIProduct, type ChainNode } from "@/data/pi-chains";
+
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+export interface SystemEntry {
+  n: string;          // system name
+  s: number;          // security status
+  r: number;          // regionID
+  t: PlanetType[];    // planet types present
+}
+
+export type SystemsData = Record<string, SystemEntry>;
+
+// Per-P0 resource requirement with its compatible planet types
+export interface P0Requirement {
+  resource: PIProduct;
+  compatibleTypes: PlanetType[];
+}
+
+// Coverage result for one system against a product
+export interface SystemCoverage {
+  systemId: string;
+  name: string;
+  security: number;
+  regionId: number;
+  planetTypes: PlanetType[];
+  coveredResources: string[];    // P0 resource IDs covered
+  missingResources: string[];    // P0 resource IDs missing
+  coverageRatio: number;         // 0-1
+  fullyCompatible: boolean;
+}
+
+// ─── P0 chain resolution ────────────────────────────────────────────────────
+
+const P0_BY_ID = Object.fromEntries(P0_RESOURCES.map((r) => [r.id, r]));
+
+/** Returns the deduplicated P0 resources needed to produce a given product. */
+export function getP0Requirements(productId: string): P0Requirement[] {
+  let chain: ChainNode;
+  try {
+    chain = buildChain(productId);
+  } catch {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  const reqs: P0Requirement[] = [];
+
+  function walk(node: ChainNode) {
+    if (node.product.tier === "P0") {
+      if (!seen.has(node.product.id)) {
+        seen.add(node.product.id);
+        reqs.push({
+          resource: node.product,
+          compatibleTypes: node.product.planetTypes ?? [],
+        });
+      }
+      return;
+    }
+    node.children.forEach(walk);
+  }
+
+  walk(chain);
+  return reqs;
+}
+
+// ─── System coverage check ──────────────────────────────────────────────────
+
+/**
+ * Given a system's planet types and the P0 requirements for a product,
+ * returns which resources are covered and which are missing.
+ */
+export function checkSystemCoverage(
+  systemPlanetTypes: PlanetType[],
+  p0Requirements: P0Requirement[],
+): { covered: string[]; missing: string[] } {
+  const sysTypes = new Set(systemPlanetTypes);
+  const covered: string[] = [];
+  const missing: string[] = [];
+
+  for (const req of p0Requirements) {
+    const hasCoverage = req.compatibleTypes.some((t) => sysTypes.has(t));
+    if (hasCoverage) {
+      covered.push(req.resource.id);
+    } else {
+      missing.push(req.resource.id);
+    }
+  }
+
+  return { covered, missing };
+}
+
+// ─── System search ──────────────────────────────────────────────────────────
+
+export type SecurityFilter = "all" | "highsec" | "lowsec" | "nullsec";
+
+function matchesSecurity(sec: number, filter: SecurityFilter): boolean {
+  if (filter === "all") return true;
+  if (filter === "highsec") return sec >= 0.45;
+  if (filter === "lowsec") return sec >= 0.1 && sec < 0.45;
+  if (filter === "nullsec") return sec < 0.1;
+  return true;
+}
+
+/**
+ * Find systems compatible with a given product.
+ * Returns systems sorted by: fully compatible first, then by coverage ratio,
+ * then by security (highsec > lowsec > null).
+ */
+export function findCompatibleSystems(
+  data: SystemsData,
+  productId: string,
+  options: {
+    filter?: SecurityFilter;
+    limit?: number;
+    onlyFull?: boolean;
+  } = {},
+): SystemCoverage[] {
+  const { filter = "all", limit = 50, onlyFull = false } = options;
+  const p0Reqs = getP0Requirements(productId);
+
+  if (p0Reqs.length === 0) return [];
+
+  const results: SystemCoverage[] = [];
+
+  for (const [id, sys] of Object.entries(data)) {
+    if (!matchesSecurity(sys.s, filter)) continue;
+
+    const { covered, missing } = checkSystemCoverage(sys.t, p0Reqs);
+    const ratio = covered.length / p0Reqs.length;
+    const full = missing.length === 0;
+
+    if (onlyFull && !full) continue;
+
+    results.push({
+      systemId: id,
+      name: sys.n,
+      security: sys.s,
+      regionId: sys.r,
+      planetTypes: sys.t,
+      coveredResources: covered,
+      missingResources: missing,
+      coverageRatio: ratio,
+      fullyCompatible: full,
+    });
+  }
+
+  results.sort((a, b) => {
+    // Full coverage first
+    if (a.fullyCompatible !== b.fullyCompatible) return a.fullyCompatible ? -1 : 1;
+    // Then by coverage ratio
+    if (a.coverageRatio !== b.coverageRatio) return b.coverageRatio - a.coverageRatio;
+    // Then highsec preferred
+    return b.security - a.security;
+  });
+
+  return results.slice(0, limit);
+}
+
+// ─── Reverse finder: given a system, which products are producible? ──────────
+
+export interface ProductFeasibility {
+  product: PIProduct;
+  p0Requirements: P0Requirement[];
+  coveredResources: string[];
+  missingResources: string[];
+  coverageRatio: number;
+  fullyCompatible: boolean;
+}
+
+/**
+ * Given a system, compute feasibility for every P2/P3/P4 product.
+ * Returns sorted: fully compatible first, then by coverage ratio.
+ */
+export function getSystemProductFeasibility(
+  system: SystemEntry,
+  tiers: ("P2" | "P3" | "P4")[] = ["P2", "P3", "P4"],
+): ProductFeasibility[] {
+  const results: ProductFeasibility[] = [];
+
+  for (const product of Object.values(ALL_PRODUCTS)) {
+    if (!tiers.includes(product.tier as "P2" | "P3" | "P4")) continue;
+
+    const p0Reqs = getP0Requirements(product.id);
+    if (p0Reqs.length === 0) continue;
+
+    const { covered, missing } = checkSystemCoverage(system.t, p0Reqs);
+
+    results.push({
+      product,
+      p0Requirements: p0Reqs,
+      coveredResources: covered,
+      missingResources: missing,
+      coverageRatio: covered.length / p0Reqs.length,
+      fullyCompatible: missing.length === 0,
+    });
+  }
+
+  results.sort((a, b) => {
+    if (a.fullyCompatible !== b.fullyCompatible) return a.fullyCompatible ? -1 : 1;
+    return b.coverageRatio - a.coverageRatio;
+  });
+
+  return results;
+}
+
+// ─── Security display helpers ────────────────────────────────────────────────
+
+export function secColor(sec: number): string {
+  if (sec >= 0.45) return "#4caf6e";   // highsec — green
+  if (sec >= 0.1)  return "#f59e0b";   // lowsec — amber
+  return "#e05c2a";                     // nullsec — red
+}
+
+export function secLabel(sec: number): string {
+  if (sec >= 0.45) return "HS";
+  if (sec >= 0.1)  return "LS";
+  return "NS";
+}
+
+export function formatSecurity(sec: number): string {
+  return sec.toFixed(1);
+}

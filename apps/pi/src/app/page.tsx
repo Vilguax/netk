@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { ChevronRight, ChevronDown, Globe, Search, Target, Download } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { ChevronRight, ChevronDown, Globe, Search, Target, Download, MapPin } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import {
@@ -24,6 +24,14 @@ import {
   downloadFactoryTemplate,
   downloadMinerTemplate,
 } from "@/data/pi-templates";
+import {
+  findCompatibleSystems,
+  secColor,
+  secLabel,
+  formatSecurity,
+  type SystemsData,
+  type SecurityFilter,
+} from "@/lib/pi-finder";
 
 const SELECTABLE_PRODUCTS = [
   ...P4_PRODUCTS.map((p) => ({ ...p, group: "P4 — Avancés" })),
@@ -104,6 +112,21 @@ export default function PICalculatorPage() {
   const [iskPerUnit, setIskPerUnit] = useState<string>("");
   const [runsPerDay, setRunsPerDay] = useState<number>(3);
   const [downloading, setDownloading] = useState<"factory" | "miner-ns" | "miner-ls" | null>(null);
+  const [systemsData, setSystemsData] = useState<SystemsData | null>(null);
+  const [secFilter, setSecFilter] = useState<SecurityFilter>("all");
+
+  // Lazy-load planet data on first render
+  useEffect(() => {
+    fetch("/data/systems-planets.json")
+      .then((r) => r.json())
+      .then(setSystemsData)
+      .catch(console.error);
+  }, []);
+
+  const compatibleSystems = useMemo(() => {
+    if (!systemsData || !selectedId) return [];
+    return findCompatibleSystems(systemsData, selectedId, { filter: secFilter, limit: 12, onlyFull: true });
+  }, [systemsData, selectedId, secFilter]);
 
   const filteredProducts = useMemo(() =>
     SELECTABLE_PRODUCTS.filter((p) =>
@@ -315,6 +338,77 @@ export default function PICalculatorPage() {
                         <PlanetBadge key={type} type={type} />
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* Compatible systems */}
+                {requiredPlanets.size > 0 && (
+                  <div
+                    className="rounded-xl p-4"
+                    style={{ background: "var(--card-bg)", border: "1px solid var(--border)" }}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <MapPin size={14} style={{ color: "var(--accent-lime)" }} />
+                        <h3 className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+                          Systèmes compatibles
+                        </h3>
+                        {systemsData && (
+                          <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "rgba(163,230,53,0.1)", color: "var(--accent-lime)" }}>
+                            {compatibleSystems.length}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex gap-1">
+                        {(["all", "highsec", "lowsec", "nullsec"] as SecurityFilter[]).map((f) => (
+                          <button
+                            key={f}
+                            onClick={() => setSecFilter(f)}
+                            className="px-2 py-0.5 rounded text-xs transition-colors"
+                            style={{
+                              background: secFilter === f ? "rgba(163,230,53,0.15)" : "rgba(255,255,255,0.04)",
+                              color: secFilter === f ? "var(--accent-lime)" : "var(--text-muted)",
+                              border: `1px solid ${secFilter === f ? "rgba(163,230,53,0.3)" : "var(--border)"}`,
+                            }}
+                          >
+                            {f === "all" ? "Tous" : f === "highsec" ? "HS" : f === "lowsec" ? "LS" : "NS"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {!systemsData && (
+                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>Chargement…</p>
+                    )}
+
+                    {systemsData && compatibleSystems.length === 0 && (
+                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                        Aucun système avec toutes les planètes requises dans ce filtre.
+                      </p>
+                    )}
+
+                    {compatibleSystems.length > 0 && (
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {compatibleSystems.map((sys) => (
+                          <div
+                            key={sys.systemId}
+                            className="flex items-center gap-2 px-2 py-1.5 rounded-lg"
+                            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}
+                          >
+                            <Globe size={10} style={{ color: secColor(sys.security), flexShrink: 0 }} />
+                            <span className="text-xs font-medium truncate" style={{ color: "var(--text-primary)" }}>
+                              {sys.name}
+                            </span>
+                            <span className="ml-auto text-xs font-mono shrink-0" style={{ color: secColor(sys.security) }}>
+                              {formatSecurity(sys.security)}
+                            </span>
+                            <span className="text-xs font-bold shrink-0" style={{ color: secColor(sys.security), fontSize: 10, minWidth: 18 }}>
+                              {secLabel(sys.security)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
