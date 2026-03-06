@@ -24,6 +24,7 @@ let isRunning = false;
 let lastFetchTime: Date | null = null;
 let lastCleanupTime: Date | null = null;
 let redisSubscriber: Redis | null = null;
+let lastRedisError: { message: string; at: number } | null = null;
 
 // Region name to ID mapping
 const REGION_MAP: Record<string, TradeHubRegion> = {
@@ -124,13 +125,47 @@ async function handleCommand(message: string): Promise<void> {
   }
 }
 
+function formatRedisError(err: unknown): string {
+  if (err instanceof Error && err.message) {
+    return err.message;
+  }
+  if (typeof err === "string") {
+    return err;
+  }
+  if (err && typeof err === "object" && "message" in err) {
+    const maybeMessage = (err as { message?: unknown }).message;
+    if (typeof maybeMessage === "string" && maybeMessage.length > 0) {
+      return maybeMessage;
+    }
+  }
+  return String(err);
+}
+
 // Setup Redis subscriber for admin commands
 async function setupRedisSubscriber(): Promise<void> {
   const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
-  redisSubscriber = new Redis(redisUrl);
+  redisSubscriber = new Redis(redisUrl, {
+    connectTimeout: 5000,
+    maxRetriesPerRequest: 1,
+    retryStrategy(times: number) {
+      if (times > 5) {
+        return null;
+      }
+      return Math.min(times * 500, 2000);
+    },
+  });
 
-  redisSubscriber.on("error", (err) => {
-    console.error("[Scheduler] Redis subscriber error:", err.message);
+  redisSubscriber.on("error", (err: unknown) => {
+    const message = formatRedisError(err);
+    const now = Date.now();
+    const isDuplicate = lastRedisError &&
+      lastRedisError.message === message &&
+      now - lastRedisError.at < 10000;
+
+    if (!isDuplicate) {
+      console.error("[Scheduler] Redis subscriber error:", message);
+      lastRedisError = { message, at: now };
+    }
   });
 
   redisSubscriber.on("connect", () => {
@@ -140,7 +175,7 @@ async function setupRedisSubscriber(): Promise<void> {
   await redisSubscriber.subscribe(REDIS_CHANNEL);
   console.log(`[Scheduler] Subscribed to ${REDIS_CHANNEL}`);
 
-  redisSubscriber.on("message", async (channel, message) => {
+  redisSubscriber.on("message", async (channel: string, message: string) => {
     if (channel === REDIS_CHANNEL) {
       await handleCommand(message);
     }
