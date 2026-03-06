@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { ChevronRight, ChevronDown, Globe, Search, Target } from "lucide-react";
+import { ChevronRight, ChevronDown, Globe, Search, Target, Download } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import {
+  P1_PRODUCTS,
   P2_PRODUCTS,
   P3_PRODUCTS,
   P4_PRODUCTS,
@@ -17,11 +18,18 @@ import {
   type ChainNode,
   type PIProduct,
 } from "@/data/pi-chains";
+import {
+  hasFactoryTemplate,
+  hasMinerTemplate,
+  downloadFactoryTemplate,
+  downloadMinerTemplate,
+} from "@/data/pi-templates";
 
 const SELECTABLE_PRODUCTS = [
   ...P4_PRODUCTS.map((p) => ({ ...p, group: "P4 — Avancés" })),
   ...P3_PRODUCTS.map((p) => ({ ...p, group: "P3 — Spécialisés" })),
   ...P2_PRODUCTS.map((p) => ({ ...p, group: "P2 — Raffinés" })),
+  ...P1_PRODUCTS.map((p) => ({ ...p, group: "P1 — Extraction" })),
 ];
 
 function ChainNodeRow({ node, depth = 0 }: { node: ChainNode; depth?: number }) {
@@ -95,6 +103,7 @@ export default function PICalculatorPage() {
   const [search, setSearch] = useState("");
   const [iskPerUnit, setIskPerUnit] = useState<string>("");
   const [runsPerDay, setRunsPerDay] = useState<number>(3);
+  const [downloading, setDownloading] = useState<"factory" | "miner-ns" | "miner-ls" | null>(null);
 
   const filteredProducts = useMemo(() =>
     SELECTABLE_PRODUCTS.filter((p) =>
@@ -129,6 +138,22 @@ export default function PICalculatorPage() {
     if (isNaN(perUnit)) return null;
     return outputPerDay * perUnit;
   }, [outputPerDay, iskPerUnit]);
+
+  async function handleDownloadFactory() {
+    if (!selectedId || downloading) return;
+    setDownloading("factory");
+    try { await downloadFactoryTemplate(selectedId); }
+    catch (e) { console.error("Template download failed:", e); }
+    finally { setDownloading(null); }
+  }
+
+  async function handleDownloadMiner(lowSec: boolean) {
+    if (!selectedId || downloading) return;
+    setDownloading(lowSec ? "miner-ls" : "miner-ns");
+    try { await downloadMinerTemplate(selectedId, lowSec); }
+    catch (e) { console.error("Miner template download failed:", e); }
+    finally { setDownloading(null); }
+  }
 
   function formatIsk(v: number): string {
     if (v >= 1e9) return `${(v / 1e9).toFixed(2)} B`;
@@ -171,10 +196,10 @@ export default function PICalculatorPage() {
               className="flex-1 rounded-xl overflow-y-auto"
               style={{ background: "var(--card-bg)", border: "1px solid var(--border)" }}
             >
-              {(["P4 — Avancés", "P3 — Spécialisés", "P2 — Raffinés"] as const).map((group) => {
+              {(["P4 — Avancés", "P3 — Spécialisés", "P2 — Raffinés", "P1 — Extraction"] as const).map((group) => {
                 const items = filteredProducts.filter((p) => p.group === group);
                 if (items.length === 0) return null;
-                const tier = group.split(" ")[0] as "P2" | "P3" | "P4";
+                const tier = group.split(" ")[0] as "P1" | "P2" | "P3" | "P4";
                 return (
                   <div key={group}>
                     <div
@@ -236,6 +261,42 @@ export default function PICalculatorPage() {
                         ×{selectedProduct.outputQty}
                       </div>
                       <div className="text-xs" style={{ color: "var(--text-muted)" }}>par cycle</div>
+                    </div>
+                  )}
+                  {hasFactoryTemplate(selectedId) && (
+                    <button
+                      onClick={handleDownloadFactory}
+                      disabled={!!downloading}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                      style={{ background: `${tierColor}18`, border: `1px solid ${tierColor}40`, color: tierColor }}
+                      title="Télécharger le template factory pour import en jeu"
+                    >
+                      <Download size={14} />
+                      {downloading === "factory" ? "…" : "Template factory"}
+                    </button>
+                  )}
+                  {hasMinerTemplate(selectedId) && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleDownloadMiner(false)}
+                        disabled={!!downloading}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                        style={{ background: `${tierColor}18`, border: `1px solid ${tierColor}40`, color: tierColor }}
+                        title="Template miner nullsec"
+                      >
+                        <Download size={14} />
+                        {downloading === "miner-ns" ? "…" : "NS"}
+                      </button>
+                      <button
+                        onClick={() => handleDownloadMiner(true)}
+                        disabled={!!downloading}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                        style={{ background: `${tierColor}18`, border: `1px solid ${tierColor}40`, color: tierColor }}
+                        title="Template miner lowsec"
+                      >
+                        <Download size={14} />
+                        {downloading === "miner-ls" ? "…" : "LS"}
+                      </button>
                     </div>
                   )}
                 </div>

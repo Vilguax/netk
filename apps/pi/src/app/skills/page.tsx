@@ -1,14 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BookOpen, Globe, Wrench, Cpu, Satellite, ScanLine, Lightbulb, ChevronRight } from "lucide-react";
+import { BookOpen, Globe, Wrench, Cpu, Satellite, ScanLine, Lightbulb, ChevronRight, Copy, Check } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import {
   calculateConstraints,
   getRecommendedSetup,
+  getSkillPlan,
+  formatSkillPlanText,
+  formatSp,
   SKILL_DESCRIPTIONS,
   type PISkills,
+  type SkillStep,
 } from "@/lib/pi-skills";
 
 interface CharacterSkillData {
@@ -63,6 +67,7 @@ export default function SkillsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedCharId, setSelectedCharId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     fetch("/api/skills")
@@ -81,6 +86,15 @@ export default function SkillsPage() {
   const selected = characters.find((c) => c.characterId === selectedCharId);
   const constraints = selected?.skills ? calculateConstraints(selected.skills) : null;
   const recommendation = constraints ? getRecommendedSetup(constraints) : null;
+  const skillPlan = selected?.skills ? getSkillPlan(selected.skills) : null;
+
+  function handleCopyPlan() {
+    if (!skillPlan) return;
+    navigator.clipboard.writeText(formatSkillPlanText(skillPlan)).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
 
   return (
     <div className="min-h-screen flex">
@@ -262,6 +276,87 @@ export default function SkillsPage() {
                           </li>
                         ))}
                       </ul>
+                    </div>
+                  )}
+
+                  {/* Skill plan */}
+                  {skillPlan && skillPlan.length > 0 && (
+                    <div className="rounded-xl p-5" style={{ background: "var(--card-bg)", border: "1px solid var(--border)" }}>
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                            Plan d&apos;entraînement PI
+                          </p>
+                          <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                            Trié par coût SP croissant — gains rapides en premier
+                          </p>
+                        </div>
+                        <button
+                          onClick={handleCopyPlan}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 cursor-pointer"
+                          style={{
+                            background: copied ? "rgba(163, 230, 53, 0.15)" : "var(--card-bg)",
+                            border: `1px solid ${copied ? "rgba(163, 230, 53, 0.4)" : "var(--border)"}`,
+                            color: copied ? "var(--accent-lime)" : "var(--text-secondary)",
+                          }}
+                        >
+                          {copied ? <Check size={12} /> : <Copy size={12} />}
+                          {copied ? "Copié !" : "Copier"}
+                        </button>
+                      </div>
+
+                      <div className="space-y-1">
+                        {skillPlan.map((step, i) => (
+                          <div
+                            key={i}
+                            className="flex items-center justify-between py-1.5 px-2 rounded-lg"
+                            style={{ background: i % 2 === 0 ? "rgba(255,255,255,0.02)" : "transparent" }}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span
+                                className="text-xs font-mono font-bold w-6 text-center flex-shrink-0"
+                                style={{ color: "var(--text-muted)" }}
+                              >
+                                {i + 1}
+                              </span>
+                              <span className="text-sm truncate" style={{ color: "var(--text-primary)" }}>
+                                {step.skill}
+                              </span>
+                              <span
+                                className="text-xs font-mono font-bold flex-shrink-0"
+                                style={{ color: "var(--accent-lime)" }}
+                              >
+                                {["I","II","III","IV","V"][step.toLevel - 1]}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3 flex-shrink-0 ml-2">
+                              <span className="text-xs font-mono" style={{ color: "var(--text-secondary)" }}>
+                                +{formatSp(step.sp)}
+                              </span>
+                              <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+                                {formatSp(step.totalSp)} total
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="mt-3 pt-3 flex justify-between items-center" style={{ borderTop: "1px solid var(--border)" }}>
+                        <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                          {skillPlan.length} level{skillPlan.length > 1 ? "s" : ""} restants
+                        </span>
+                        <span className="text-xs font-mono font-semibold" style={{ color: "var(--accent-lime)" }}>
+                          {formatSp(skillPlan[skillPlan.length - 1]?.totalSp ?? 0)} au total
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {skillPlan && skillPlan.length === 0 && (
+                    <div className="rounded-xl p-4 text-center" style={{ background: "rgba(163, 230, 53, 0.05)", border: "1px solid rgba(163, 230, 53, 0.2)" }}>
+                      <p className="text-sm font-semibold" style={{ color: "var(--accent-lime)" }}>
+                        Tous les skills PI sont à niveau 5 !
+                      </p>
                     </div>
                   )}
                 </div>

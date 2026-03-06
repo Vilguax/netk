@@ -64,6 +64,77 @@ export function skillLevelDots(level: number, max = 5): string {
   return "●".repeat(level) + "○".repeat(max - level);
 }
 
+// ─── Skill Plan Generator ───────────────────────────────────────────────────
+
+// Cumulative SP at each level for rank 1
+const BASE_SP_CUMULATIVE = [0, 250, 1415, 8000, 45255, 256000];
+
+// SP needed to go from level N to level N+1 (rank 1)
+function spForLevel(fromLevel: number): number {
+  return BASE_SP_CUMULATIVE[fromLevel + 1] - BASE_SP_CUMULATIVE[fromLevel];
+}
+
+const SKILL_RANK: Record<keyof PISkills, number> = {
+  "Command Center Upgrades":      3,
+  "Interplanetary Consolidation": 4,
+  "Planetology":                  3,
+  "Advanced Planetology":         5,
+  "Remote Sensing":               3,
+};
+
+const ROMAN = ["0", "I", "II", "III", "IV", "V"];
+
+export interface SkillStep {
+  skill: keyof PISkills;
+  toLevel: number;
+  sp: number;       // SP needed for this single level
+  totalSp: number;  // cumulative SP in the plan up to this step
+}
+
+// Returns all remaining level upgrades sorted by SP cost ascending.
+// Each entry = one level gain (e.g. CCU 3→4, then CCU 4→5, etc.)
+export function getSkillPlan(skills: PISkills): SkillStep[] {
+  const steps: SkillStep[] = [];
+
+  for (const skillName of Object.keys(skills) as (keyof PISkills)[]) {
+    const current = skills[skillName];
+    const rank = SKILL_RANK[skillName];
+    for (let lvl = current; lvl < 5; lvl++) {
+      steps.push({
+        skill: skillName,
+        toLevel: lvl + 1,
+        sp: spForLevel(lvl) * rank,
+        totalSp: 0, // filled below
+      });
+    }
+  }
+
+  // Sort by SP cost ascending (quickest win first)
+  steps.sort((a, b) => a.sp - b.sp);
+
+  // Compute cumulative SP
+  let cumul = 0;
+  for (const step of steps) {
+    cumul += step.sp;
+    step.totalSp = cumul;
+  }
+
+  return steps;
+}
+
+// Format as text EVE in-game skill plan (e.g. "Command Center Upgrades IV")
+export function formatSkillPlanText(steps: SkillStep[]): string {
+  return steps
+    .map((s) => `${s.skill} ${ROMAN[s.toLevel]}`)
+    .join("\n");
+}
+
+export function formatSp(sp: number): string {
+  if (sp >= 1_000_000) return `${(sp / 1_000_000).toFixed(2)} M SP`;
+  if (sp >= 1_000) return `${Math.round(sp / 1_000)} K SP`;
+  return `${sp} SP`;
+}
+
 export const SKILL_DESCRIPTIONS: Record<keyof PISkills, string> = {
   "Command Center Upgrades": "Nombre d'installations par planète",
   "Interplanetary Consolidation": "Nombre de planètes exploitables",
