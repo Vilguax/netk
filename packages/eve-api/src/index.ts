@@ -450,6 +450,27 @@ class EsiClient {
     }
   }
 
+  // ========== Skills Methods ==========
+
+  async getCharacterSkills(
+    characterId: number,
+    accessToken: string
+  ): Promise<{
+    skills: Array<{
+      skill_id: number;
+      trained_skill_level: number;
+      active_skill_level: number;
+      skillpoints_in_skill: number;
+    }>;
+    total_sp: number;
+    unallocated_sp?: number;
+  }> {
+    return this.fetch(
+      `/characters/${characterId}/skills/?datasource=tranquility`,
+      { accessToken }
+    );
+  }
+
   // ========== Market / Wallet Methods ==========
 
   async getCharacterOrders(
