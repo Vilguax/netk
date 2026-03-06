@@ -6,9 +6,9 @@ import { Calculator, Globe, Clock, BookOpen } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/",          label: "Calculateur",  icon: Calculator },
+  { href: "/skills",    label: "Skills",       icon: BookOpen },
+  { href: "/timers",    label: "Timers",       icon: Clock },
   { href: "/colonies",  label: "Colonies",     icon: Globe,      soon: true },
-  { href: "/timers",    label: "Timers",       icon: Clock,      soon: true },
-  { href: "/skills",    label: "Skills",       icon: BookOpen,   soon: true },
 ];
 
 export function Sidebar() {

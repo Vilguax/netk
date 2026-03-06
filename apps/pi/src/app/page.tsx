@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { ChevronRight, ChevronDown, Globe, Search } from "lucide-react";
+import { ChevronRight, ChevronDown, Globe, Search, Target } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import {
@@ -93,6 +93,8 @@ function PlanetBadge({ type }: { type: string }) {
 export default function PICalculatorPage() {
   const [selectedId, setSelectedId] = useState<string>(P4_PRODUCTS[0]?.id ?? "");
   const [search, setSearch] = useState("");
+  const [iskPerUnit, setIskPerUnit] = useState<string>("");
+  const [runsPerDay, setRunsPerDay] = useState<number>(3);
 
   const filteredProducts = useMemo(() =>
     SELECTABLE_PRODUCTS.filter((p) =>
@@ -115,6 +117,24 @@ export default function PICalculatorPage() {
 
   const selectedProduct = ALL_PRODUCTS[selectedId];
   const tierColor = selectedProduct ? TIER_CONFIG[selectedProduct.tier].color : "#a3e635";
+
+  const outputPerDay = useMemo(() => {
+    if (!selectedProduct?.outputQty) return null;
+    return selectedProduct.outputQty * runsPerDay;
+  }, [selectedProduct, runsPerDay]);
+
+  const iskPerDay = useMemo(() => {
+    if (!outputPerDay || !iskPerUnit) return null;
+    const perUnit = parseFloat(iskPerUnit.replace(/[^\d.]/g, ""));
+    if (isNaN(perUnit)) return null;
+    return outputPerDay * perUnit;
+  }, [outputPerDay, iskPerUnit]);
+
+  function formatIsk(v: number): string {
+    if (v >= 1e9) return `${(v / 1e9).toFixed(2)} B`;
+    if (v >= 1e6) return `${(v / 1e6).toFixed(2)} M`;
+    return `${(v / 1e3).toFixed(0)} K`;
+  }
 
   return (
     <div className="min-h-screen flex">
@@ -236,6 +256,65 @@ export default function PICalculatorPage() {
                     </div>
                   </div>
                 )}
+
+                {/* ISK estimator */}
+                <div
+                  className="rounded-xl p-4"
+                  style={{ background: "var(--card-bg)", border: "1px solid var(--border)" }}
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <Target size={14} style={{ color: "var(--accent-gold)" }} />
+                    <h3 className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+                      Estimateur ISK/jour
+                    </h3>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <label className="flex flex-col gap-1">
+                      <span className="text-xs" style={{ color: "var(--text-muted)" }}>Prix de vente (ISK / unité)</span>
+                      <input
+                        type="text"
+                        placeholder="ex: 450000"
+                        value={iskPerUnit}
+                        onChange={(e) => setIskPerUnit(e.target.value)}
+                        className="px-3 py-2 text-sm rounded-lg outline-none font-mono"
+                        style={{ background: "rgba(0,0,0,0.3)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span className="text-xs" style={{ color: "var(--text-muted)" }}>Cycles par jour</span>
+                      <select
+                        value={runsPerDay}
+                        onChange={(e) => setRunsPerDay(Number(e.target.value))}
+                        className="px-3 py-2 text-sm rounded-lg outline-none cursor-pointer"
+                        style={{ background: "rgba(0,0,0,0.3)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+                      >
+                        {[1, 2, 3, 4, 6, 8, 12, 24].map((n) => (
+                          <option key={n} value={n}>{n}×/jour</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <div className="flex gap-4">
+                    {outputPerDay && (
+                      <div>
+                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>Production / jour</p>
+                        <p className="text-lg font-mono font-bold" style={{ color: tierColor }}>{outputPerDay} unités</p>
+                      </div>
+                    )}
+                    {iskPerDay !== null && (
+                      <div>
+                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>Revenus estimés / jour</p>
+                        <p className="text-lg font-mono font-bold" style={{ color: "var(--accent-gold)" }}>{formatIsk(iskPerDay)} ISK</p>
+                      </div>
+                    )}
+                    {iskPerDay !== null && (
+                      <div>
+                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>/ mois (30j)</p>
+                        <p className="text-lg font-mono font-bold" style={{ color: "var(--accent-gold)" }}>{formatIsk(iskPerDay * 30)} ISK</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
 
                 {/* Chain tree */}
                 {chain && (
