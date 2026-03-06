@@ -19,6 +19,7 @@ export const EVE_DEFAULT_SCOPES = [
   "esi-fleets.read_fleet.v1",
   "esi-fleets.write_fleet.v1",
   "esi-skills.read_skills.v1",
+  "esi-planets.manage_planets.v1",
 ];
 
 export interface EveTokens {

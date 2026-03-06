@@ -450,6 +450,46 @@ class EsiClient {
     }
   }
 
+  // ========== Planetary Interaction Methods ==========
+
+  async getCharacterPlanets(
+    characterId: number,
+    accessToken: string
+  ): Promise<Array<{
+    planet_id: number;
+    solar_system_id: number;
+    planet_type: string;
+    upgrade_level: number;
+    num_pins: number;
+    last_update: string;
+  }>> {
+    return this.fetch(
+      `/characters/${characterId}/planets/?datasource=tranquility`,
+      { accessToken }
+    );
+  }
+
+  async getColonyLayout(
+    characterId: number,
+    planetId: number,
+    accessToken: string
+  ): Promise<{
+    pins: Array<{
+      pin_id: number;
+      type_id: number;
+      expiry_time?: string;
+      install_time?: string;
+      last_cycle_start?: string;
+    }>;
+    links: unknown[];
+    routes: unknown[];
+  }> {
+    return this.fetch(
+      `/characters/${characterId}/planets/${planetId}/?datasource=tranquility`,
+      { accessToken }
+    );
+  }
+
   // ========== Skills Methods ==========
 
   async getCharacterSkills(
