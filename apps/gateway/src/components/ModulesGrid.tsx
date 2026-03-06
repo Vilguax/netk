@@ -70,8 +70,17 @@ const MODULE_CONFIGS: ModuleConfig[] = [
     defaultStatus: "online",
   },
   {
+    name: "Planetary Interaction",
+    description: "Calculateur PI - Chaînes de production, setup recommandé selon vos skills, timers de colonies",
+    url: process.env.NEXT_PUBLIC_PI_URL || "http://localhost:3007",
+    healthUrl: (process.env.NEXT_PUBLIC_PI_URL || "http://localhost:3007") + "/api/health",
+    gradient: "from-lime-500 to-green-400",
+    icon: "factory",
+    defaultStatus: "online",
+  },
+  {
     name: "Industry",
-    description: "Calculateur de blueprints, planification PI, réactions et manufacturing",
+    description: "Calculateur de blueprints, réactions et manufacturing",
     url: "#",
     healthUrl: "",
     gradient: "from-pink-500 to-rose-400",
