@@ -9,6 +9,9 @@ export interface SystemEntry {
   n: string;          // system name
   s: number;          // security status
   r: number;          // regionID
+  x: number;          // coordinate (divided by 1e13)
+  y: number;
+  z: number;
   t: PlanetType[];    // planet types present
 }
 
@@ -31,6 +34,7 @@ export interface SystemCoverage {
   missingResources: string[];    // P0 resource IDs missing
   coverageRatio: number;         // 0-1
   fullyCompatible: boolean;
+  distance?: number;             // Euclidean distance from reference system (arbitrary units)
 }
 
 // ─── P0 chain resolution ────────────────────────────────────────────────────
@@ -105,10 +109,17 @@ function matchesSecurity(sec: number, filter: SecurityFilter): boolean {
   return true;
 }
 
+function euclideanDist(a: SystemEntry, b: SystemEntry): number {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  const dz = a.z - b.z;
+  return Math.sqrt(dx * dx + dy * dy + dz * dz);
+}
+
 /**
  * Find systems compatible with a given product.
- * Returns systems sorted by: fully compatible first, then by coverage ratio,
- * then by security (highsec > lowsec > null).
+ * If referenceSystemId is provided, sorts by proximity to that system.
+ * Otherwise sorts by: fully compatible first, coverage ratio, then security.
  */
 export function findCompatibleSystems(
   data: SystemsData,
@@ -117,16 +128,20 @@ export function findCompatibleSystems(
     filter?: SecurityFilter;
     limit?: number;
     onlyFull?: boolean;
+    referenceSystemId?: string;
   } = {},
 ): SystemCoverage[] {
-  const { filter = "all", limit = 50, onlyFull = false } = options;
+  const { filter = "all", limit = 50, onlyFull = false, referenceSystemId } = options;
   const p0Reqs = getP0Requirements(productId);
 
   if (p0Reqs.length === 0) return [];
 
+  const refSys = referenceSystemId ? data[referenceSystemId] : null;
+
   const results: SystemCoverage[] = [];
 
   for (const [id, sys] of Object.entries(data)) {
+    if (id === referenceSystemId) continue;
     if (!matchesSecurity(sys.s, filter)) continue;
 
     const { covered, missing } = checkSystemCoverage(sys.t, p0Reqs);
@@ -145,17 +160,20 @@ export function findCompatibleSystems(
       missingResources: missing,
       coverageRatio: ratio,
       fullyCompatible: full,
+      distance: refSys ? euclideanDist(sys, refSys) : undefined,
     });
   }
 
-  results.sort((a, b) => {
-    // Full coverage first
-    if (a.fullyCompatible !== b.fullyCompatible) return a.fullyCompatible ? -1 : 1;
-    // Then by coverage ratio
-    if (a.coverageRatio !== b.coverageRatio) return b.coverageRatio - a.coverageRatio;
-    // Then highsec preferred
-    return b.security - a.security;
-  });
+  if (refSys) {
+    // Sort by distance from reference system (closest first)
+    results.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
+  } else {
+    results.sort((a, b) => {
+      if (a.fullyCompatible !== b.fullyCompatible) return a.fullyCompatible ? -1 : 1;
+      if (a.coverageRatio !== b.coverageRatio) return b.coverageRatio - a.coverageRatio;
+      return b.security - a.security;
+    });
+  }
 
   return results.slice(0, limit);
 }

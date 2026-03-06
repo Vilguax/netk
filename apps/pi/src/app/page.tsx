@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { ChevronRight, ChevronDown, Globe, Search, Target, Download, MapPin } from "lucide-react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { ChevronRight, ChevronDown, Globe, Search, Target, Download, MapPin, Navigation } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import {
@@ -112,21 +112,98 @@ export default function PICalculatorPage() {
   const [iskPerUnit, setIskPerUnit] = useState<string>("");
   const [runsPerDay, setRunsPerDay] = useState<number>(3);
   const [downloading, setDownloading] = useState<"factory" | "miner-ns" | "miner-ls" | null>(null);
-  const [systemsData, setSystemsData] = useState<SystemsData | null>(null);
-  const [secFilter, setSecFilter] = useState<SecurityFilter>("all");
+  const [systemsData, setSystemsData]     = useState<SystemsData | null>(null);
+  const [secFilter, setSecFilter]          = useState<SecurityFilter>("all");
+  const [refSystemId, setRefSystemId]      = useState<string | null>(null);
+  const [refQuery, setRefQuery]            = useState("");
+  const [locationStatus, setLocationStatus] = useState<"idle" | "loading" | "ok" | "unauth" | "error">("loading");
+  const [refSuggestions, setRefSuggestions] = useState<{ id: string; name: string; sec: number }[]>([]);
+  const [refOpen, setRefOpen]              = useState(false);
+  const [refActiveIdx, setRefActiveIdx]    = useState(-1);
+  const refWrapperRef                      = useRef<HTMLDivElement>(null);
+  const refInputRef                        = useRef<HTMLInputElement>(null);
 
-  // Lazy-load planet data on first render
+  // Load planet data + character location in parallel
   useEffect(() => {
     fetch("/data/systems-planets.json")
       .then((r) => r.json())
       .then(setSystemsData)
       .catch(console.error);
+
+    fetch("/api/location")
+      .then((r) => r.json().then((data) => ({ ok: r.ok, status: r.status, data })))
+      .then(({ ok, status, data }) => {
+        if (ok && data?.systemId) {
+          setRefSystemId(String(data.systemId));
+          setLocationStatus("ok");
+        } else if (status === 401) {
+          setLocationStatus("unauth");
+        } else {
+          setLocationStatus("error");
+        }
+      })
+      .catch(() => setLocationStatus("error"));
   }, []);
+
+  // Sync ref input text when data + id both ready
+  useEffect(() => {
+    if (systemsData && refSystemId) {
+      const name = systemsData[refSystemId]?.n;
+      if (name) setRefQuery(name);
+    }
+  }, [systemsData, refSystemId]);
+
+  // Build ref system autocomplete suggestions
+  useEffect(() => {
+    if (!systemsData || refQuery.length < 1) { setRefSuggestions([]); setRefActiveIdx(-1); return; }
+    const q = refQuery.toLowerCase();
+    const starts   = Object.entries(systemsData).filter(([, s]) => s.n.toLowerCase().startsWith(q));
+    const contains = Object.entries(systemsData).filter(([, s]) => !s.n.toLowerCase().startsWith(q) && s.n.toLowerCase().includes(q));
+    setRefSuggestions(
+      [...starts, ...contains].slice(0, 8).map(([id, s]) => ({ id, name: s.n, sec: s.s }))
+    );
+    setRefActiveIdx(-1);
+    setRefOpen(true);
+  }, [refQuery, systemsData]);
+
+  // Close ref dropdown on outside click
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      if (refWrapperRef.current && !refWrapperRef.current.contains(e.target as Node)) {
+        setRefOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  const selectRefSystem = useCallback((id: string, name: string) => {
+    setRefSystemId(id);
+    setRefQuery(name);
+    setRefSuggestions([]);
+    setRefOpen(false);
+    refInputRef.current?.blur();
+  }, []);
+
+  function handleRefKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (!refOpen || refSuggestions.length === 0) return;
+    if (e.key === "ArrowDown")  { e.preventDefault(); setRefActiveIdx((i) => Math.min(i + 1, refSuggestions.length - 1)); }
+    else if (e.key === "ArrowUp")   { e.preventDefault(); setRefActiveIdx((i) => Math.max(i - 1, -1)); }
+    else if (e.key === "Enter")  { e.preventDefault(); const it = refSuggestions[refActiveIdx] ?? refSuggestions[0]; if (it) selectRefSystem(it.id, it.name); }
+    else if (e.key === "Escape") { setRefOpen(false); }
+  }
+
+  const showRefDropdown = refOpen && refSuggestions.length > 0;
 
   const compatibleSystems = useMemo(() => {
     if (!systemsData || !selectedId) return [];
-    return findCompatibleSystems(systemsData, selectedId, { filter: secFilter, limit: 12, onlyFull: true });
-  }, [systemsData, selectedId, secFilter]);
+    return findCompatibleSystems(systemsData, selectedId, {
+      filter: secFilter,
+      limit: 20,
+      onlyFull: true,
+      referenceSystemId: refSystemId ?? undefined,
+    });
+  }, [systemsData, selectedId, secFilter, refSystemId]);
 
   const filteredProducts = useMemo(() =>
     SELECTABLE_PRODUCTS.filter((p) =>
@@ -347,7 +424,7 @@ export default function PICalculatorPage() {
                     className="rounded-xl p-4"
                     style={{ background: "var(--card-bg)", border: "1px solid var(--border)" }}
                   >
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
                       <div className="flex items-center gap-2">
                         <MapPin size={14} style={{ color: "var(--accent-lime)" }} />
                         <h3 className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
@@ -359,6 +436,71 @@ export default function PICalculatorPage() {
                           </span>
                         )}
                       </div>
+
+                      {/* Reference system picker */}
+                      <div ref={refWrapperRef} className="relative flex-1 min-w-0 max-w-56">
+                        {locationStatus === "unauth" && (
+                          <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>
+                            <a href="http://localhost:3000/account/characters" target="_blank" rel="noreferrer" style={{ color: "#f59e0b", textDecoration: "underline" }}>
+                              Re-liez votre perso
+                            </a>{" "}pour auto-détecter
+                          </p>
+                        )}
+                        <div className="relative">
+                          <Navigation size={11} className="absolute left-2 top-1/2 -translate-y-1/2" style={{ color: locationStatus === "ok" ? "var(--accent-lime)" : "var(--text-muted)" }} />
+                          <input
+                            ref={refInputRef}
+                            type="text"
+                            value={refQuery}
+                            onChange={(e) => { setRefQuery(e.target.value); setRefSystemId(null); }}
+                            onFocus={() => { if (refSuggestions.length > 0) setRefOpen(true); }}
+                            onKeyDown={handleRefKeyDown}
+                            placeholder={systemsData ? "Système de référence…" : "Chargement…"}
+                            disabled={!systemsData}
+                            autoComplete="off"
+                            className="w-full pl-6 pr-2 py-1 rounded text-xs outline-none"
+                            style={{
+                              background: "rgba(255,255,255,0.04)",
+                              border: `1px solid ${showRefDropdown ? "rgba(163,230,53,0.4)" : "var(--border)"}`,
+                              color: "var(--text-primary)",
+                              borderBottomLeftRadius: showRefDropdown ? 0 : undefined,
+                              borderBottomRightRadius: showRefDropdown ? 0 : undefined,
+                            }}
+                          />
+                        </div>
+                        {showRefDropdown && (
+                          <div
+                            className="absolute z-20 w-full overflow-hidden shadow-2xl"
+                            style={{
+                              background: "rgba(8,12,20,0.98)",
+                              border: "1px solid rgba(163,230,53,0.4)",
+                              borderTop: "none",
+                              borderBottomLeftRadius: 6,
+                              borderBottomRightRadius: 6,
+                              minWidth: 200,
+                            }}
+                          >
+                            {refSuggestions.map((item, idx) => (
+                              <button
+                                key={item.id}
+                                onMouseDown={(e) => { e.preventDefault(); selectRefSystem(item.id, item.name); }}
+                                onMouseEnter={() => setRefActiveIdx(idx)}
+                                className="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs transition-colors"
+                                style={{
+                                  background: idx === refActiveIdx ? "rgba(163,230,53,0.08)" : "transparent",
+                                  borderTop: idx > 0 ? "1px solid rgba(255,255,255,0.04)" : "none",
+                                }}
+                              >
+                                <span style={{ color: "var(--text-primary)" }}>{item.name}</span>
+                                <span className="ml-auto font-mono shrink-0" style={{ color: secColor(item.sec) }}>
+                                  {secLabel(item.sec)}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
                       <div className="flex gap-1">
                         {(["all", "highsec", "lowsec", "nullsec"] as SecurityFilter[]).map((f) => (
                           <button

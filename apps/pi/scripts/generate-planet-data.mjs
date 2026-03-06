@@ -79,12 +79,18 @@ async function downloadFile(url, dest) {
 // sunTypeID(24), securityClass(25)
 const SS_COL_SYSTEM_ID = 2;
 const SS_COL_NAME      = 3;
+const SS_COL_X         = 4;
+const SS_COL_Y         = 5;
+const SS_COL_Z         = 6;
 const SS_COL_SECURITY  = 21;
 const SS_COL_REGION    = 0;
 
+// EVE coordinates are in meters (~1e17 range). Divide by 1e13 → compact integers (thousands range).
+const COORD_SCALE = 1e13;
+
 async function loadSystemMeta() {
   console.log("Parsing mapSolarSystems.csv...");
-  const meta = {}; // solarSystemID → { n, s, r }
+  const meta = {}; // solarSystemID → { n, s, r, x, y, z }
   const rl = createInterface({
     input: createReadStream(TMP_SYSTEMS, { encoding: "utf8" }),
     crlfDelay: Infinity,
@@ -98,8 +104,11 @@ async function loadSystemMeta() {
     const name = cols[SS_COL_NAME];
     const sec  = parseFloat(cols[SS_COL_SECURITY]);
     const rid  = parseInt(cols[SS_COL_REGION], 10);
+    const x   = Math.round(parseFloat(cols[SS_COL_X]) / COORD_SCALE);
+    const y   = Math.round(parseFloat(cols[SS_COL_Y]) / COORD_SCALE);
+    const z   = Math.round(parseFloat(cols[SS_COL_Z]) / COORD_SCALE);
     if (id && name) {
-      meta[id] = { n: name, s: Math.round(sec * 100) / 100, r: rid };
+      meta[id] = { n: name, s: Math.round(sec * 100) / 100, r: rid, x, y, z };
     }
   }
   console.log(`  → ${Object.keys(meta).length.toLocaleString()} systems loaded`);
@@ -171,6 +180,9 @@ async function main() {
       n: meta.n,
       s: meta.s,
       r: meta.r,
+      x: meta.x,
+      y: meta.y,
+      z: meta.z,
       t: [...types],
     };
   }
