@@ -22,15 +22,6 @@ export function Header({ title, subtitle }: HeaderProps) {
         )}
       </div>
 
-      <div className="flex items-center gap-2">
-        <div
-          className="w-2 h-2 rounded-full"
-          style={{ background: "var(--accent-lime)", boxShadow: "0 0 6px var(--accent-lime)" }}
-        />
-        <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-          Données locales
-        </span>
-      </div>
     </header>
   );
 }
