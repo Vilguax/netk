@@ -1,0 +1,259 @@
+"use client";
+
+import { useState, useMemo } from "react";
+import { ChevronRight, ChevronDown, Globe, Search } from "lucide-react";
+import { Sidebar } from "@/components/layout/Sidebar";
+import { Header } from "@/components/layout/Header";
+import {
+  P2_PRODUCTS,
+  P3_PRODUCTS,
+  P4_PRODUCTS,
+  ALL_PRODUCTS,
+  buildChain,
+  getRequiredPlanetTypes,
+  PLANET_TYPE_LABELS,
+  PLANET_TYPE_COLORS,
+  TIER_CONFIG,
+  type ChainNode,
+  type PIProduct,
+} from "@/data/pi-chains";
+
+const SELECTABLE_PRODUCTS = [
+  ...P4_PRODUCTS.map((p) => ({ ...p, group: "P4 — Avancés" })),
+  ...P3_PRODUCTS.map((p) => ({ ...p, group: "P3 — Spécialisés" })),
+  ...P2_PRODUCTS.map((p) => ({ ...p, group: "P2 — Raffinés" })),
+];
+
+function ChainNodeRow({ node, depth = 0 }: { node: ChainNode; depth?: number }) {
+  const [expanded, setExpanded] = useState(depth < 2);
+  const hasChildren = node.children.length > 0;
+  const tier = node.product.tier;
+  const tierColor = TIER_CONFIG[tier].color;
+
+  return (
+    <div>
+      <div
+        className="flex items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-white/5 transition-colors duration-150 cursor-pointer"
+        style={{ paddingLeft: `${8 + depth * 20}px` }}
+        onClick={() => hasChildren && setExpanded(!expanded)}
+      >
+        {/* Expand toggle */}
+        <span className="w-4 h-4 flex items-center justify-center flex-shrink-0" style={{ color: "var(--text-muted)" }}>
+          {hasChildren ? (
+            expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />
+          ) : (
+            <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: tierColor }} />
+          )}
+        </span>
+
+        {/* Tier badge */}
+        <span
+          className="text-xs font-mono px-1.5 py-0.5 rounded flex-shrink-0"
+          style={{ background: `${tierColor}18`, color: tierColor, fontSize: "10px" }}
+        >
+          {tier}
+        </span>
+
+        {/* Name */}
+        <span className="text-sm flex-1" style={{ color: hasChildren ? "var(--text-primary)" : "var(--text-secondary)" }}>
+          {node.product.name}
+        </span>
+
+        {/* Quantity */}
+        <span className="text-sm font-mono ml-auto" style={{ color: tierColor }}>
+          ×{node.quantity.toLocaleString()}
+        </span>
+      </div>
+
+      {expanded && hasChildren && (
+        <div>
+          {node.children.map((child, i) => (
+            <ChainNodeRow key={`${child.product.id}-${i}`} node={child} depth={depth + 1} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PlanetBadge({ type }: { type: string }) {
+  const color = PLANET_TYPE_COLORS[type as keyof typeof PLANET_TYPE_COLORS] ?? "#64748b";
+  const label = PLANET_TYPE_LABELS[type as keyof typeof PLANET_TYPE_LABELS] ?? type;
+  return (
+    <div
+      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs"
+      style={{ background: `${color}18`, color, border: `1px solid ${color}30` }}
+    >
+      <Globe size={11} />
+      {label}
+    </div>
+  );
+}
+
+export default function PICalculatorPage() {
+  const [selectedId, setSelectedId] = useState<string>(P4_PRODUCTS[0]?.id ?? "");
+  const [search, setSearch] = useState("");
+
+  const filteredProducts = useMemo(() =>
+    SELECTABLE_PRODUCTS.filter((p) =>
+      p.name.toLowerCase().includes(search.toLowerCase())
+    ),
+    [search]
+  );
+
+  const chain = useMemo(() => {
+    if (!selectedId || !ALL_PRODUCTS[selectedId]) return null;
+    try { return buildChain(selectedId, 1); }
+    catch { return null; }
+  }, [selectedId]);
+
+  const requiredPlanets = useMemo(() => {
+    if (!selectedId || !ALL_PRODUCTS[selectedId]) return new Set<string>();
+    try { return getRequiredPlanetTypes(selectedId); }
+    catch { return new Set<string>(); }
+  }, [selectedId]);
+
+  const selectedProduct = ALL_PRODUCTS[selectedId];
+  const tierColor = selectedProduct ? TIER_CONFIG[selectedProduct.tier].color : "#a3e635";
+
+  return (
+    <div className="min-h-screen flex">
+      <Sidebar />
+
+      <div className="flex-1 ml-56 flex flex-col min-h-screen">
+        <Header
+          title="Calculateur de chaîne PI"
+          subtitle="Sélectionnez un produit pour voir sa chaîne de production complète"
+        />
+
+        <div className="flex flex-1 gap-6 p-6">
+          {/* Product selector */}
+          <div className="w-72 flex-shrink-0 flex flex-col gap-3">
+            {/* Search */}
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }} />
+              <input
+                type="text"
+                placeholder="Rechercher…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg outline-none"
+                style={{
+                  background: "var(--card-bg)",
+                  border: "1px solid var(--border)",
+                  color: "var(--text-primary)",
+                }}
+              />
+            </div>
+
+            {/* Product list */}
+            <div
+              className="flex-1 rounded-xl overflow-y-auto"
+              style={{ background: "var(--card-bg)", border: "1px solid var(--border)" }}
+            >
+              {(["P4 — Avancés", "P3 — Spécialisés", "P2 — Raffinés"] as const).map((group) => {
+                const items = filteredProducts.filter((p) => p.group === group);
+                if (items.length === 0) return null;
+                const tier = group.split(" ")[0] as "P2" | "P3" | "P4";
+                return (
+                  <div key={group}>
+                    <div
+                      className="px-3 py-2 text-xs font-semibold sticky top-0"
+                      style={{
+                        color: TIER_CONFIG[tier].color,
+                        background: `${TIER_CONFIG[tier].color}12`,
+                        borderBottom: "1px solid var(--border)",
+                      }}
+                    >
+                      {group}
+                    </div>
+                    {items.map((product) => (
+                      <button
+                        key={product.id}
+                        onClick={() => setSelectedId(product.id)}
+                        className="w-full text-left px-3 py-2 text-sm transition-colors duration-100 cursor-pointer"
+                        style={{
+                          background: selectedId === product.id ? `${TIER_CONFIG[tier].color}14` : "transparent",
+                          color: selectedId === product.id ? TIER_CONFIG[tier].color : "var(--text-secondary)",
+                          borderLeft: selectedId === product.id ? `2px solid ${TIER_CONFIG[tier].color}` : "2px solid transparent",
+                        }}
+                      >
+                        {product.name}
+                      </button>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Chain view */}
+          <div className="flex-1 flex flex-col gap-4">
+            {selectedProduct && (
+              <>
+                {/* Product header */}
+                <div
+                  className="rounded-xl p-4 flex items-center gap-4"
+                  style={{ background: "var(--card-bg)", border: "1px solid var(--border)" }}
+                >
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center text-xs font-bold"
+                    style={{ background: `${tierColor}18`, color: tierColor }}
+                  >
+                    {selectedProduct.tier}
+                  </div>
+                  <div className="flex-1">
+                    <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
+                      {selectedProduct.name}
+                    </h2>
+                    <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                      {TIER_CONFIG[selectedProduct.tier].label}
+                    </p>
+                  </div>
+                  {selectedProduct.outputQty && (
+                    <div className="text-right">
+                      <div className="text-2xl font-bold font-mono" style={{ color: tierColor }}>
+                        ×{selectedProduct.outputQty}
+                      </div>
+                      <div className="text-xs" style={{ color: "var(--text-muted)" }}>par cycle</div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Required planet types */}
+                {requiredPlanets.size > 0 && (
+                  <div
+                    className="rounded-xl p-4"
+                    style={{ background: "var(--card-bg)", border: "1px solid var(--border)" }}
+                  >
+                    <h3 className="text-sm font-medium mb-3" style={{ color: "var(--text-secondary)" }}>
+                      Planètes requises ({requiredPlanets.size})
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {Array.from(requiredPlanets).map((type) => (
+                        <PlanetBadge key={type} type={type} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Chain tree */}
+                {chain && (
+                  <div
+                    className="flex-1 rounded-xl p-4 overflow-y-auto"
+                    style={{ background: "var(--card-bg)", border: "1px solid var(--border)" }}
+                  >
+                    <h3 className="text-sm font-medium mb-3" style={{ color: "var(--text-secondary)" }}>
+                      Chaîne de production
+                    </h3>
+                    <ChainNodeRow node={chain} depth={0} />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

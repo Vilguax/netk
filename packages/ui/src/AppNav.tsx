@@ -9,7 +9,8 @@ export type AppId =
   | "rock-radar"
   | "appraisal"
   | "fleet"
-  | "market";
+  | "market"
+  | "pi";
 
 interface AppDef {
   id: AppId;
@@ -68,6 +69,13 @@ const APPS: AppDef[] = [
     devUrl: "http://localhost:3006",
     prodUrl: "https://market.netk.app",
     color: "#f87171",
+  },
+  {
+    id: "pi",
+    name: "PI",
+    devUrl: "http://localhost:3007",
+    prodUrl: "https://pi.netk.app",
+    color: "#a3e635",
   },
 ];
 
@@ -129,6 +137,14 @@ function AppIcon({ id, size = 13 }: { id: AppId; size?: number }) {
           <line x1="18" y1="20" x2="18" y2="10" />
           <line x1="12" y1="20" x2="12" y2="4" />
           <line x1="6" y1="20" x2="6" y2="14" />
+        </svg>
+      );
+    case "pi":
+      return (
+        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="12" r="9" />
+          <ellipse cx="12" cy="12" rx="9" ry="4" />
+          <line x1="12" y1="3" x2="12" y2="21" />
         </svg>
       );
     default:
