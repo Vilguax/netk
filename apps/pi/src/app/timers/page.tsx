@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Clock, Plus, Trash2, Globe, RefreshCw, AlertTriangle, Zap, WifiOff } from "lucide-react";
+import { Clock, Plus, Trash2, Globe, RefreshCw, AlertTriangle, Zap, WifiOff, Navigation, ChevronDown, Check } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { PLANET_TYPE_LABELS, PLANET_TYPE_COLORS, type PlanetType } from "@/data/pi-chains";
@@ -34,6 +34,7 @@ interface AutoPlanet {
   planetType: string;
   upgradeLevel: number;
   solarSystemId: number;
+  systemName: string;
   numPins: number;
   lastUpdate: string;
   extractors: Extractor[];
@@ -112,9 +113,36 @@ function ExtractorCard({ extractor, planetType }: { extractor: Extractor; planet
   );
 }
 
-function AutoPlanetCard({ planet, characterName }: { planet: AutoPlanet; characterName: string }) {
+function AutoPlanetCard({
+  planet,
+  characterName,
+  destoCharId,
+  hasDestoChar,
+}: {
+  planet: AutoPlanet;
+  characterName: string;
+  destoCharId: string | null;
+  hasDestoChar: boolean;
+}) {
   const planetColor = PLANET_TYPE_COLORS[planet.planetType as PlanetType] ?? "#64748b";
   const activeExtractors = planet.extractors.filter((e) => e.expiryTime);
+  const [destoState, setDestoState] = useState<"idle" | "loading" | "ok" | "err">("idle");
+
+  async function setDesto() {
+    if (!destoCharId) return;
+    setDestoState("loading");
+    try {
+      const r = await fetch("/api/waypoint", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ characterId: destoCharId, systemId: planet.solarSystemId }),
+      });
+      setDestoState(r.ok ? "ok" : "err");
+    } catch {
+      setDestoState("err");
+    }
+    setTimeout(() => setDestoState("idle"), 2500);
+  }
 
   return (
     <div
@@ -126,7 +154,7 @@ function AutoPlanetCard({ planet, characterName }: { planet: AutoPlanet; charact
           <Globe size={14} style={{ color: planetColor }} />
           <div>
             <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-              Planète {planet.planetId}
+              {planet.systemName}
             </p>
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>{characterName}</p>
           </div>
@@ -139,6 +167,30 @@ function AutoPlanetCard({ planet, characterName }: { planet: AutoPlanet; charact
             {PLANET_TYPE_LABELS[planet.planetType as PlanetType] ?? planet.planetType}
           </span>
           <span className="text-xs" style={{ color: "var(--text-muted)" }}>CC {planet.upgradeLevel}</span>
+          {hasDestoChar && (
+            <button
+              onClick={setDesto}
+              disabled={destoState === "loading" || !destoCharId}
+              title={`Set desto → ${planet.systemName}`}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs cursor-pointer disabled:opacity-50 transition-colors duration-150"
+              style={{
+                background: destoState === "ok"
+                  ? "rgba(163,230,53,0.15)"
+                  : destoState === "err"
+                    ? "rgba(239,68,68,0.15)"
+                    : "rgba(148,163,184,0.08)",
+                color: destoState === "ok"
+                  ? "var(--accent-lime)"
+                  : destoState === "err"
+                    ? "#ef4444"
+                    : "var(--text-muted)",
+                border: `1px solid ${destoState === "ok" ? "rgba(163,230,53,0.3)" : destoState === "err" ? "rgba(239,68,68,0.3)" : "var(--border)"}`,
+              }}
+            >
+              {destoState === "ok" ? <Check size={10} /> : destoState === "err" ? <AlertTriangle size={10} /> : <Navigation size={10} />}
+              {destoState === "ok" ? "Ok" : destoState === "err" ? "Erreur" : "Desto"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -159,13 +211,24 @@ function AutoMode() {
   const [characters, setCharacters] = useState<AutoCharacter[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastFetch, setLastFetch] = useState<Date | null>(null);
+  const [destoCharId, setDestoCharId] = useState<string | null>(null);
 
   const fetchColonies = useCallback(() => {
     setLoading(true);
     fetch("/api/colonies")
       .then((r) => r.json())
       .then((data) => {
-        if (data.characters) setCharacters(data.characters);
+        if (data.characters) {
+          setCharacters(data.characters);
+          // Auto-select first character with waypoint scope
+          setDestoCharId((prev) => {
+            if (prev) return prev;
+            const eligible = (data.characters as AutoCharacter[]).find(
+              (c) => c.status === "ok"
+            );
+            return eligible?.characterId ?? null;
+          });
+        }
         setLastFetch(new Date());
       })
       .catch(() => {})
@@ -177,7 +240,7 @@ function AutoMode() {
   const noScopeChars = characters.filter((c) => c.status === "no_scope");
   const okChars = characters.filter((c) => c.status === "ok");
   const allPlanets = okChars.flatMap((c) =>
-    c.planets.map((p) => ({ planet: p, characterName: c.characterName }))
+    c.planets.map((p) => ({ planet: p, characterName: c.characterName, characterId: c.characterId }))
   );
 
   // Sort: planets with soonest expiry first
@@ -186,6 +249,9 @@ function AutoMode() {
     const bExpiry = Math.min(...b.planet.extractors.map((e) => e.expiryTime ? new Date(e.expiryTime).getTime() : Infinity));
     return aExpiry - bExpiry;
   });
+
+  // Characters eligible for set-desto (need waypoint scope — included in default scopes)
+  const destoEligible = characters.filter((c) => c.status === "ok");
 
   return (
     <div>
@@ -202,15 +268,36 @@ function AutoMode() {
             </span>
           )}
         </div>
-        <button
-          onClick={fetchColonies}
-          disabled={loading}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors duration-150 cursor-pointer disabled:opacity-40"
-          style={{ background: "rgba(163, 230, 53, 0.1)", color: "var(--accent-lime)", border: "1px solid rgba(163, 230, 53, 0.2)" }}
-        >
-          <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
-          Actualiser
-        </button>
+        <div className="flex items-center gap-2">
+          {destoEligible.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <Navigation size={12} style={{ color: "var(--text-muted)" }} />
+              <span className="text-xs" style={{ color: "var(--text-muted)" }}>Desto via</span>
+              <div className="relative">
+                <select
+                  value={destoCharId ?? ""}
+                  onChange={(e) => setDestoCharId(e.target.value || null)}
+                  className="pl-2 pr-6 py-1 text-xs rounded-lg outline-none cursor-pointer appearance-none"
+                  style={{ background: "rgba(0,0,0,0.3)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+                >
+                  {destoEligible.map((c) => (
+                    <option key={c.characterId} value={c.characterId}>{c.characterName}</option>
+                  ))}
+                </select>
+                <ChevronDown size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--text-muted)" }} />
+              </div>
+            </div>
+          )}
+          <button
+            onClick={fetchColonies}
+            disabled={loading}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors duration-150 cursor-pointer disabled:opacity-40"
+            style={{ background: "rgba(163, 230, 53, 0.1)", color: "var(--accent-lime)", border: "1px solid rgba(163, 230, 53, 0.2)" }}
+          >
+            <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
+            Actualiser
+          </button>
+        </div>
       </div>
 
       {/* No scope warning */}
@@ -248,8 +335,14 @@ function AutoMode() {
 
       {!loading && sorted.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {sorted.map(({ planet, characterName }) => (
-            <AutoPlanetCard key={`${characterName}-${planet.planetId}`} planet={planet} characterName={characterName} />
+          {sorted.map(({ planet, characterName, characterId }) => (
+            <AutoPlanetCard
+              key={`${characterId}-${planet.planetId}`}
+              planet={planet}
+              characterName={characterName}
+              destoCharId={destoCharId}
+              hasDestoChar={destoEligible.length > 0}
+            />
           ))}
         </div>
       )}

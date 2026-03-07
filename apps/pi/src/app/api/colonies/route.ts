@@ -45,8 +45,23 @@ export async function GET() {
         const characterId = Number(character.characterId);
         const planetList = await esi.getCharacterPlanets(characterId, accessToken);
 
+        // Resolve system names in batch
+        const uniqueSystemIds = [...new Set(planetList.map((p) => p.solar_system_id))];
+        const systemNameMap = new Map<number, string>();
+        await Promise.all(
+          uniqueSystemIds.map(async (id) => {
+            try {
+              const sys = await esi.getSystem(id);
+              systemNameMap.set(id, sys.name);
+            } catch {
+              systemNameMap.set(id, `Système ${id}`);
+            }
+          })
+        );
+
         const planets = await Promise.all(
           planetList.map(async (planet) => {
+            const systemName = systemNameMap.get(planet.solar_system_id) ?? `Système ${planet.solar_system_id}`;
             try {
               const layout = await esi.getColonyLayout(characterId, planet.planet_id, accessToken);
 
@@ -66,6 +81,7 @@ export async function GET() {
                 planetType: planet.planet_type,
                 upgradeLevel: planet.upgrade_level,
                 solarSystemId: planet.solar_system_id,
+                systemName,
                 numPins: planet.num_pins,
                 lastUpdate: planet.last_update,
                 extractors,
@@ -76,6 +92,7 @@ export async function GET() {
                 planetType: planet.planet_type,
                 upgradeLevel: planet.upgrade_level,
                 solarSystemId: planet.solar_system_id,
+                systemName,
                 numPins: planet.num_pins,
                 lastUpdate: planet.last_update,
                 extractors: [],

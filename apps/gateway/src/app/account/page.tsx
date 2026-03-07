@@ -7,6 +7,14 @@ import { PROVIDER_COLORS, type AuthProvider } from "@netk/auth/client";
 export default function AccountPage() {
   const { data: session, status } = useSession();
   const [oauthImageFailed, setOauthImageFailed] = useState(false);
+  const oauthImage =
+    typeof session?.user?.image === "string" && session.user.image.startsWith("http")
+      ? session.user.image
+      : null;
+
+  useEffect(() => {
+    setOauthImageFailed(false);
+  }, [oauthImage]);
 
   if (status === "loading") {
     return (
@@ -49,14 +57,6 @@ export default function AccountPage() {
     google: "Google",
     discord: "Discord",
   }[provider];
-  const oauthImage =
-    typeof session.user?.image === "string" && session.user.image.startsWith("http")
-      ? session.user.image
-      : null;
-
-  useEffect(() => {
-    setOauthImageFailed(false);
-  }, [oauthImage]);
 
   return (
     <div className="space-y-6">
