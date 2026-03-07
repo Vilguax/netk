@@ -168,6 +168,26 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  pi:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      args:
+        APP_DIR: apps/pi
+        APP_PORT: "3007"
+    env_file:
+      - .env.production
+    environment:
+      NODE_ENV: production
+    ports:
+      - "3007:3007"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
   market-fetcher:
     build:
       context: .
