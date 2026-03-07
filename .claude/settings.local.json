@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run build)"
+      "Bash(npm run build)",
+      "Bash(grep -E \"^\\\\s{0,4}[a-z].*:\" c:/Users/axelp/Desktop/netk/docker-compose.prod.yml)"
     ]
   }
 }

@@ -171,24 +171,25 @@ function AutoPlanetCard({
             <button
               onClick={setDesto}
               disabled={destoState === "loading" || !destoCharId}
-              title={`Set desto → ${planet.systemName}`}
-              className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs cursor-pointer disabled:opacity-50 transition-colors duration-150"
+              title={`Set destination → ${planet.systemName}`}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer disabled:opacity-50 transition-all duration-150"
               style={{
                 background: destoState === "ok"
-                  ? "rgba(163,230,53,0.15)"
+                  ? "rgba(163,230,53,0.18)"
                   : destoState === "err"
-                    ? "rgba(239,68,68,0.15)"
-                    : "rgba(148,163,184,0.08)",
+                    ? "rgba(239,68,68,0.18)"
+                    : "rgba(56,189,248,0.12)",
                 color: destoState === "ok"
                   ? "var(--accent-lime)"
                   : destoState === "err"
                     ? "#ef4444"
-                    : "var(--text-muted)",
-                border: `1px solid ${destoState === "ok" ? "rgba(163,230,53,0.3)" : destoState === "err" ? "rgba(239,68,68,0.3)" : "var(--border)"}`,
+                    : "#38bdf8",
+                border: `1px solid ${destoState === "ok" ? "rgba(163,230,53,0.4)" : destoState === "err" ? "rgba(239,68,68,0.4)" : "rgba(56,189,248,0.35)"}`,
+                boxShadow: destoState === "idle" ? "0 0 6px rgba(56,189,248,0.15)" : "none",
               }}
             >
-              {destoState === "ok" ? <Check size={10} /> : destoState === "err" ? <AlertTriangle size={10} /> : <Navigation size={10} />}
-              {destoState === "ok" ? "Ok" : destoState === "err" ? "Erreur" : "Desto"}
+              {destoState === "ok" ? <Check size={11} /> : destoState === "err" ? <AlertTriangle size={11} /> : <Navigation size={11} />}
+              {destoState === "ok" ? "Défini !" : destoState === "err" ? "Erreur" : destoState === "loading" ? "…" : "Set destination"}
             </button>
           )}
         </div>
