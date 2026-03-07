@@ -608,21 +608,6 @@ class EsiClient {
     );
   }
 
-  async getCharacterSkills(
-    characterId: number,
-    accessToken: string
-  ): Promise<{ skills: Array<{ skill_id: number; trained_skill_level: number }> } | null> {
-    try {
-      return await this.fetch(
-        `/characters/${characterId}/skills/?datasource=tranquility`,
-        { accessToken }
-      );
-    } catch (err) {
-      console.error(`[ESI] getCharacterSkills(${characterId}) error:`, err);
-      return null;
-    }
-  }
-
   async setWaypoint(
     destinationId: number,
     accessToken: string,

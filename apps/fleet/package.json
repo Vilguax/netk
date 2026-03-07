@@ -17,12 +17,12 @@
     "@netk/ui": "*",
     "graphology": "*",
     "graphology-types": "*",
-    "sigma": "*",
     "lucide-react": "^0.469.0",
     "next": "16.1.4",
     "next-auth": "^5.0.0-beta.30",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "sigma": "*"
   },
   "devDependencies": {
     "@netk/tsconfig": "*",
@@ -33,6 +33,6 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.4",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "5.9.3"
   }
 }

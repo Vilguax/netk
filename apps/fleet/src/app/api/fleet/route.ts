@@ -60,7 +60,7 @@ export async function GET() {
     if (!fleetId) {
       // Not in fleet - still return user's characters with online status
       const onlineChecks = await Promise.allSettled(
-        userCharacters.map(async (char) => {
+        userCharacters.map(async (char: { characterId: bigint; characterName: string }) => {
           const charId = Number(char.characterId);
           let online = false;
           try {
@@ -85,7 +85,10 @@ export async function GET() {
           (r): r is PromiseFulfilledResult<{ characterId: number; characterName: string; online: boolean }> =>
             r.status === "fulfilled" && r.value !== null
         )
-        .map((r) => r.value)
+        .map(
+          (r: PromiseFulfilledResult<{ characterId: number; characterName: string; online: boolean }>) =>
+            r.value
+        )
         .sort((a, b) => (a.online === b.online ? 0 : a.online ? -1 : 1));
 
       return NextResponse.json({
@@ -127,7 +130,13 @@ export async function GET() {
     for (let i = 0; i < allNetkCharacters.length; i += BATCH_SIZE) {
       const batch = allNetkCharacters.slice(i, i + BATCH_SIZE);
       const results = await Promise.allSettled(
-        batch.map(async (char) => {
+        batch.map(
+          async (char: {
+            characterId: bigint;
+            characterName: string;
+            userId: string;
+            scopes: string[];
+          }) => {
           const charName = char.characterName;
           const charId = Number(char.characterId);
 
@@ -169,7 +178,8 @@ export async function GET() {
             console.error(`[Fleet] ${charName} (${charId}): ERROR in getCharacterFleet:`, err);
             return null;
           }
-        })
+          }
+        )
       );
 
       for (const result of results) {
@@ -185,7 +195,17 @@ export async function GET() {
 
     // Step 3: Get location and ship for each fleet member in parallel
     const memberDetails = await Promise.allSettled(
-      fleetMembers.map(async (member) => {
+      fleetMembers.map(
+        async (member: {
+          characterId: number;
+          characterName: string;
+          userId: string;
+          role: string;
+          wingId: number;
+          squadId: number;
+          token: string;
+          scopes: string[];
+        }) => {
         const [location, ship] = await Promise.all([
           esi
             .getCharacterLocation(member.characterId, member.token)
@@ -218,7 +238,14 @@ export async function GET() {
         if (canJump && hasSkillScope && location.solar_system_id > 0) {
           try {
             const skillsData = await esi.getCharacterSkills(member.characterId, member.token);
-            const jdcSkill = skillsData?.skills.find((s) => s.skill_id === JDC_SKILL_ID);
+            const jdcSkill = skillsData?.skills.find(
+              (s: {
+                skill_id: number;
+                trained_skill_level: number;
+                active_skill_level: number;
+                skillpoints_in_skill: number;
+              }) => s.skill_id === JDC_SKILL_ID
+            );
             jdcLevel = jdcSkill?.trained_skill_level ?? 0;
 
             const baseRange = BASE_JUMP_RANGE[shipGroupId] ?? 0;
@@ -240,7 +267,7 @@ export async function GET() {
                 WHERE POWER(x - ${sx}, 2) + POWER(y - ${sy}, 2) + POWER(z - ${sz}, 2) <= ${rangeM2}
                 AND system_id != ${location.solar_system_id}
               `;
-              reachableSystems = nearby.map((r) => r.system_id);
+              reachableSystems = nearby.map((r: { system_id: number }) => r.system_id);
             }
           } catch (err) {
             console.error(`[Fleet] Jump data error for ${member.characterName}:`, err);
@@ -264,7 +291,8 @@ export async function GET() {
           jumpRangeLY,
           reachableSystems,
         };
-      })
+        }
+      )
     );
 
     const members = memberDetails
@@ -287,7 +315,25 @@ export async function GET() {
           reachableSystems: number[] | undefined;
         }> => r.status === "fulfilled"
       )
-      .map((r) => r.value);
+      .map(
+        (r: PromiseFulfilledResult<{
+          characterId: number;
+          characterName: string;
+          solarSystemId: number;
+          shipTypeId: number;
+          shipTypeName: string;
+          role: string;
+          wingId: number;
+          squadId: number;
+          isNetkUser: boolean;
+          netkUserId: string;
+          canJump: boolean;
+          hasSkillScope: boolean;
+          jdcLevel: number | undefined;
+          jumpRangeLY: number | undefined;
+          reachableSystems: number[] | undefined;
+        }>) => r.value
+      );
 
     // Step 4: Try to get wing info if we have a commander
     let wings: Array<{
@@ -298,7 +344,16 @@ export async function GET() {
 
     // Find a commander among our members to fetch wing structure
     const commander = fleetMembers.find(
-      (m) =>
+      (m: {
+        characterId: number;
+        characterName: string;
+        userId: string;
+        role: string;
+        wingId: number;
+        squadId: number;
+        token: string;
+        scopes: string[];
+      }) =>
         m.role === "fleet_commander" ||
         m.role === "wing_commander" ||
         m.role === "squad_commander"
@@ -313,13 +368,34 @@ export async function GET() {
     }
 
     // Build list of current user's characters NOT in the fleet, with online status
-    const fleetMemberIds = new Set(members.map((m) => m.characterId));
+    const fleetMemberIds = new Set(
+      members.map(
+        (m: {
+          characterId: number;
+          characterName: string;
+          solarSystemId: number;
+          shipTypeId: number;
+          shipTypeName: string;
+          role: string;
+          wingId: number;
+          squadId: number;
+          isNetkUser: boolean;
+          netkUserId: string;
+          canJump: boolean;
+          hasSkillScope: boolean;
+          jdcLevel: number | undefined;
+          jumpRangeLY: number | undefined;
+          reachableSystems: number[] | undefined;
+        }) => m.characterId
+      )
+    );
     const outOfFleetCandidates = userCharacters.filter(
-      (c) => !fleetMemberIds.has(Number(c.characterId))
+      (c: { characterId: bigint; characterName: string }) =>
+        !fleetMemberIds.has(Number(c.characterId))
     );
 
     const onlineChecks = await Promise.allSettled(
-      outOfFleetCandidates.map(async (char) => {
+      outOfFleetCandidates.map(async (char: { characterId: bigint; characterName: string }) => {
         const charId = Number(char.characterId);
         let online = false;
         try {
@@ -344,7 +420,10 @@ export async function GET() {
         (r): r is PromiseFulfilledResult<{ characterId: number; characterName: string; online: boolean }> =>
           r.status === "fulfilled" && r.value !== null
       )
-      .map((r) => r.value)
+      .map(
+        (r: PromiseFulfilledResult<{ characterId: number; characterName: string; online: boolean }>) =>
+          r.value
+      )
       .sort((a, b) => (a.online === b.online ? 0 : a.online ? -1 : 1));
 
     return NextResponse.json({

@@ -82,7 +82,7 @@ export async function POST(request: Request) {
     for (let i = 0; i < allNetkCharacters.length; i += BATCH_SIZE) {
       const batch = allNetkCharacters.slice(i, i + BATCH_SIZE);
       const results = await Promise.allSettled(
-        batch.map(async (char) => {
+        batch.map(async (char: { characterId: bigint; scopes: string[] }) => {
           if (!char.scopes.includes("esi-fleets.read_fleet.v1")) return null;
 
           const token = await getCharacterAccessToken(char.characterId);
