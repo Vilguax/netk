@@ -1,10 +1,12 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { PROVIDER_COLORS, type AuthProvider } from "@netk/auth/client";
 
 export default function AccountPage() {
   const { data: session, status } = useSession();
+  const [oauthImageFailed, setOauthImageFailed] = useState(false);
 
   if (status === "loading") {
     return (
@@ -47,6 +49,14 @@ export default function AccountPage() {
     google: "Google",
     discord: "Discord",
   }[provider];
+  const oauthImage =
+    typeof session.user?.image === "string" && session.user.image.startsWith("http")
+      ? session.user.image
+      : null;
+
+  useEffect(() => {
+    setOauthImageFailed(false);
+  }, [oauthImage]);
 
   return (
     <div className="space-y-6">
@@ -65,6 +75,15 @@ export default function AccountPage() {
                   alt={session.user?.activeCharacterName || "Avatar"}
                   className="w-24 h-24 rounded-xl"
                   style={{ boxShadow: `0 0 20px ${providerColor}40` }}
+                />
+              ) : oauthImage && !oauthImageFailed ? (
+                <img
+                  src={oauthImage}
+                  alt={session.user?.name || session.user?.email || "Avatar"}
+                  className="w-24 h-24 rounded-xl object-cover"
+                  style={{ boxShadow: `0 0 20px ${providerColor}40` }}
+                  referrerPolicy="no-referrer"
+                  onError={() => setOauthImageFailed(true)}
                 />
               ) : (
                 <div

@@ -33,6 +33,8 @@ import {
   type SecurityFilter,
 } from "@/lib/pi-finder";
 
+const GATEWAY_URL = process.env.NEXT_PUBLIC_GATEWAY_URL || "http://localhost:3000";
+
 const SELECTABLE_PRODUCTS = [
   ...P4_PRODUCTS.map((p) => ({ ...p, group: "P4 — Avancés" })),
   ...P3_PRODUCTS.map((p) => ({ ...p, group: "P3 — Spécialisés" })),
@@ -441,7 +443,7 @@ export default function PICalculatorPage() {
                       <div ref={refWrapperRef} className="relative flex-1 min-w-0 max-w-56">
                         {locationStatus === "unauth" && (
                           <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>
-                            <a href="http://localhost:3000/account/characters" target="_blank" rel="noreferrer" style={{ color: "#f59e0b", textDecoration: "underline" }}>
+                            <a href={`${GATEWAY_URL}/account/characters`} target="_blank" rel="noreferrer" style={{ color: "#f59e0b", textDecoration: "underline" }}>
                               Re-liez votre perso
                             </a>{" "}pour auto-détecter
                           </p>

@@ -100,6 +100,7 @@ export function CharacterSelector() {
         <CharacterAvatar
           characterId={activeCharacterId}
           characterName={activeCharacterName}
+          oauthImage={session.user?.image}
           provider={provider}
           size="sm"
           fallback={session.user?.email || undefined}

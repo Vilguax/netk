@@ -20,6 +20,7 @@ declare module "next-auth" {
       id: string;
       email?: string | null;
       name?: string | null;
+      image?: string | null;
       isAdmin: boolean;
       provider: AuthProvider;
       activeCharacterId?: string;
@@ -30,6 +31,7 @@ declare module "next-auth" {
   interface User {
     isAdmin?: boolean;
     provider?: AuthProvider;
+    image?: string | null;
     activeCharacterId?: string;
     activeCharacterName?: string;
   }
@@ -40,6 +42,7 @@ declare module "@auth/core/jwt" {
     userId: string;
     isAdmin: boolean;
     provider: AuthProvider;
+    image?: string | null;
     activeCharacterId?: string;
     activeCharacterName?: string;
   }

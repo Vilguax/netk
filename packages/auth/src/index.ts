@@ -24,6 +24,7 @@ declare module "next-auth" {
       id: string;
       email?: string | null;
       name?: string | null;
+      image?: string | null;
       isAdmin: boolean;
       provider: AuthProvider;
       activeCharacterId?: string;
@@ -34,6 +35,7 @@ declare module "next-auth" {
   interface User {
     isAdmin?: boolean;
     provider?: AuthProvider;
+    image?: string | null;
     activeCharacterId?: string;
     activeCharacterName?: string;
   }
@@ -44,6 +46,7 @@ declare module "@auth/core/jwt" {
     userId: string;
     isAdmin: boolean;
     provider: AuthProvider;
+    image?: string | null;
     activeCharacterId?: string;
     activeCharacterName?: string;
   }
@@ -164,6 +167,13 @@ export const authConfig: NextAuthConfig = {
     async signIn({ user, account, profile }) {
       // For OAuth providers, create or link user account
       if (account?.provider === "google" || account?.provider === "discord") {
+        const oauthImage =
+          account.provider === "google"
+            ? ((profile as { picture?: string } | undefined)?.picture ?? user.image ?? null)
+            : ((profile as { image_url?: string; avatar_url?: string } | undefined)?.image_url ??
+                (profile as { image_url?: string; avatar_url?: string } | undefined)?.avatar_url ??
+                user.image ??
+                null);
         const isEmailVerified =
           account.provider === "google"
             ? (profile as { email_verified?: boolean } | undefined)?.email_verified === true
@@ -225,6 +235,8 @@ export const authConfig: NextAuthConfig = {
         // Store user ID for JWT callback
         user.id = dbUser.id;
         user.isAdmin = dbUser.isAdmin;
+        user.provider = account.provider as AuthProvider;
+        user.image = oauthImage;
       }
 
       let ipAddress = "unknown";
@@ -258,9 +270,16 @@ export const authConfig: NextAuthConfig = {
     async jwt({ token, user, account, trigger, session }) {
       // Initial sign in
       if (user) {
+        const oauthImageFromToken =
+          typeof token.image === "string"
+            ? token.image
+            : typeof token.picture === "string"
+              ? token.picture
+              : null;
         token.userId = user.id!;
         token.isAdmin = user.isAdmin ?? false;
         token.provider = (user.provider ?? account?.provider ?? "credentials") as AuthProvider;
+        token.image = user.image ?? oauthImageFromToken;
         token.activeCharacterId = user.activeCharacterId;
         token.activeCharacterName = user.activeCharacterName;
       }
@@ -292,6 +311,7 @@ export const authConfig: NextAuthConfig = {
       session.user.id = token.userId;
       session.user.isAdmin = token.isAdmin;
       session.user.provider = token.provider;
+      session.user.image = token.image;
       session.user.activeCharacterId = token.activeCharacterId;
       session.user.activeCharacterName = token.activeCharacterName;
 

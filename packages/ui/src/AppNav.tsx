@@ -15,8 +15,7 @@ export type AppId =
 interface AppDef {
   id: AppId;
   name: string;
-  devUrl: string;
-  prodUrl: string;
+  fallbackUrl: string;
   color: string;
 }
 
@@ -24,60 +23,63 @@ const APPS: AppDef[] = [
   {
     id: "gateway",
     name: "Accueil",
-    devUrl: "http://localhost:3000",
-    prodUrl: "https://netk.app",
+    fallbackUrl: "http://localhost:3000",
     color: "#22d3ee",
   },
   {
     id: "flipper",
     name: "Flipper",
-    devUrl: "http://localhost:3001",
-    prodUrl: "https://flipper.netk.app",
+    fallbackUrl: "http://localhost:3001",
     color: "#a78bfa",
   },
   {
     id: "ratting",
     name: "Ratting",
-    devUrl: "http://localhost:3002",
-    prodUrl: "https://ratting.netk.app",
+    fallbackUrl: "http://localhost:3002",
     color: "#34d399",
   },
   {
     id: "rock-radar",
     name: "Rock Radar",
-    devUrl: "http://localhost:3003",
-    prodUrl: "https://rock-radar.netk.app",
+    fallbackUrl: "http://localhost:3003",
     color: "#fb923c",
   },
   {
     id: "appraisal",
     name: "Appraisal",
-    devUrl: "http://localhost:3004",
-    prodUrl: "https://appraisal.netk.app",
+    fallbackUrl: "http://localhost:3004",
     color: "#facc15",
   },
   {
     id: "fleet",
     name: "Fleet",
-    devUrl: "http://localhost:3005",
-    prodUrl: "https://fleet.netk.app",
+    fallbackUrl: "http://localhost:3005",
     color: "#60a5fa",
   },
   {
     id: "market",
     name: "Market",
-    devUrl: "http://localhost:3006",
-    prodUrl: "https://market.netk.app",
+    fallbackUrl: "http://localhost:3006",
     color: "#f87171",
   },
   {
     id: "pi",
     name: "PI",
-    devUrl: "http://localhost:3007",
-    prodUrl: "https://pi.netk.app",
+    fallbackUrl: "http://localhost:3007",
     color: "#a3e635",
   },
 ];
+
+const APP_ENV_URLS: Record<AppId, string | undefined> = {
+  gateway: process.env.NEXT_PUBLIC_GATEWAY_URL,
+  flipper: process.env.NEXT_PUBLIC_FLIPPER_URL,
+  ratting: process.env.NEXT_PUBLIC_RATTING_URL,
+  "rock-radar": process.env.NEXT_PUBLIC_ROCK_RADAR_URL,
+  appraisal: process.env.NEXT_PUBLIC_APPRAISAL_URL,
+  fleet: process.env.NEXT_PUBLIC_FLEET_URL,
+  market: process.env.NEXT_PUBLIC_MARKET_URL,
+  pi: process.env.NEXT_PUBLIC_PI_URL,
+};
 
 function AppIcon({ id, size = 13 }: { id: AppId; size?: number }) {
   const s = size;
@@ -158,7 +160,7 @@ export interface AppNavProps {
 
 export function AppNav({ activeApp }: AppNavProps) {
   const [hovered, setHovered] = useState<AppId | null>(null);
-  const isDev = process.env.NODE_ENV === "development";
+  const gatewayUrl = APP_ENV_URLS.gateway || APPS.find((app) => app.id === "gateway")!.fallbackUrl;
 
   return (
     <nav
@@ -181,7 +183,7 @@ export function AppNav({ activeApp }: AppNavProps) {
     >
       {/* NETK Logo */}
       <a
-        href={isDev ? "http://localhost:3000" : "https://netk.app"}
+        href={gatewayUrl}
         style={{
           display: "flex",
           alignItems: "center",
@@ -237,7 +239,7 @@ export function AppNav({ activeApp }: AppNavProps) {
       {APPS.map((app) => {
         const isActive = app.id === activeApp;
         const isHovered = hovered === app.id;
-        const url = isDev ? app.devUrl : app.prodUrl;
+        const url = APP_ENV_URLS[app.id] || app.fallbackUrl;
 
         return (
           <a
