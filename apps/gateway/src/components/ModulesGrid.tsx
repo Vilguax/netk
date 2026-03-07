@@ -71,7 +71,7 @@ const MODULE_CONFIGS: ModuleConfig[] = [
   },
   {
     name: "Planetary Interaction",
-    description: "Calculateur PI - Chaînes de production, setup recommandé selon vos skills, timers de colonies",
+    description: "Calculateur PI - Timers de colonies ESI, set destination par perso, finder de chaînes et setup recommandé selon vos skills",
     url: process.env.NEXT_PUBLIC_PI_URL || "http://localhost:3007",
     healthUrl: (process.env.NEXT_PUBLIC_PI_URL || "http://localhost:3007") + "/api/health",
     gradient: "from-lime-500 to-green-400",
