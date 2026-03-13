@@ -26,11 +26,13 @@ import {
 } from "@/data/pi-templates";
 import {
   findCompatibleSystems,
+  getProductionPlan,
   secColor,
   secLabel,
   formatSecurity,
   type SystemsData,
   type SecurityFilter,
+  type ProductionPlan,
 } from "@/lib/pi-finder";
 
 const GATEWAY_URL = process.env.NEXT_PUBLIC_GATEWAY_URL || "http://localhost:3000";
@@ -108,12 +110,92 @@ function PlanetBadge({ type }: { type: string }) {
   );
 }
 
+function CharPlanAdvice({ plan, charCount, tierColor }: { plan: ProductionPlan; charCount: number; tierColor: string }) {
+  const n = plan.extractions.length;
+  const tierDepth = plan.finalProduct.tier === "P2" ? 1 : plan.finalProduct.tier === "P3" ? 2 : 3;
+  const recommendedPlanets = Math.min(2 * n + tierDepth, 6);
+
+  const rowStyle = { color: "var(--text-secondary)", fontSize: 12 };
+  const mutedStyle = { color: "var(--text-muted)", fontSize: 11 };
+
+  // 1 char — self-sufficient
+  if (charCount === 1) {
+    return (
+      <div className="p-3 rounded-lg" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}>
+        <p className="text-xs font-medium mb-2" style={{ color: tierColor }}>Chaîne complète en solo</p>
+        <div className="flex flex-col gap-1">
+          {plan.extractions.map((r) => (
+            <p key={r.p0.id} style={rowStyle}>
+              • 2× planète {r.planetTypes.slice(0, 2).map((pt) => PLANET_TYPE_LABELS[pt]).join(" / ")} → {r.p1.name}
+            </p>
+          ))}
+          <p style={rowStyle}>• {tierDepth}× planète usine → {plan.finalProduct.name}</p>
+        </div>
+        <p className="mt-2" style={mutedStyle}>{recommendedPlanets} planètes sur 6 disponibles (avec IC V)</p>
+      </div>
+    );
+  }
+
+  // Fewer chars than roles — independent chains
+  if (charCount <= n) {
+    return (
+      <div className="p-3 rounded-lg" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}>
+        <p className="text-xs font-medium mb-1" style={{ color: tierColor }}>{charCount} chaînes indépendantes — ×{charCount} production</p>
+        <p style={rowStyle}>Chaque personnage fait la chaîne complète en autonomie.</p>
+        <p className="mt-1" style={mutedStyle}>Chaque perso : {recommendedPlanets} planètes · Zéro logistique entre persos</p>
+      </div>
+    );
+  }
+
+  // Exactly n+1 chars — perfect specialization
+  if (charCount === n + 1) {
+    return (
+      <div className="p-3 rounded-lg" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}>
+        <p className="text-xs font-medium mb-2" style={{ color: tierColor }}>Spécialisation par rôle</p>
+        <div className="flex flex-col gap-1">
+          {plan.extractions.map((r, i) => (
+            <p key={r.p0.id} style={rowStyle}>
+              • Perso {i + 1} : 3-4× planète {r.planetTypes.slice(0, 2).map((pt) => PLANET_TYPE_LABELS[pt]).join(" / ")} → {r.p1.name}
+            </p>
+          ))}
+          <p style={rowStyle}>• Perso {n + 1} : 2-3× planète usine → {plan.finalProduct.name}</p>
+        </div>
+        <p className="mt-2" style={{ color: "#f59e0b", fontSize: 11 }}>⚠ Nécessite de livrer les P1 au perso usine (hauling)</p>
+      </div>
+    );
+  }
+
+  // Many chars — show two options
+  const extPerType = Math.max(1, Math.floor((charCount - 1) / n));
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="p-3 rounded-lg" style={{ background: `${tierColor}08`, border: `1px solid ${tierColor}25` }}>
+        <p className="text-xs font-medium mb-1" style={{ color: tierColor }}>Option A — Simple (recommandé)</p>
+        <p style={rowStyle}>{charCount} chaînes indépendantes = ×{charCount} production</p>
+        <p style={mutedStyle}>Zéro logistique · chaque perso est autonome · {recommendedPlanets} planètes/perso</p>
+      </div>
+      <div className="p-3 rounded-lg" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}>
+        <p className="text-xs font-medium mb-1" style={{ color: "var(--text-primary)" }}>Option B — Production optimisée</p>
+        <div className="flex flex-col gap-0.5">
+          {plan.extractions.map((r) => (
+            <p key={r.p0.id} style={rowStyle}>• {extPerType} perso(s) : {r.p0.name} → {r.p1.name} ({r.planetTypes.slice(0, 2).map((pt) => PLANET_TYPE_LABELS[pt]).join(" / ")})</p>
+          ))}
+          <p style={rowStyle}>• 1 perso : usine {plan.finalProduct.name}</p>
+        </div>
+        <p className="mt-1" style={{ color: "#f59e0b", fontSize: 11 }}>⚠ Logistique P1 → usine requise</p>
+      </div>
+    </div>
+  );
+}
+
 export default function PICalculatorPage() {
   const [selectedId, setSelectedId] = useState<string>(P4_PRODUCTS[0]?.id ?? "");
   const [search, setSearch] = useState("");
   const [iskPerUnit, setIskPerUnit] = useState<string>("");
   const [runsPerDay, setRunsPerDay] = useState<number>(3);
   const [downloading, setDownloading] = useState<"factory" | "miner-ns" | "miner-ls" | null>(null);
+  const [charCount, setCharCount] = useState(1);
+  const [maxChars, setMaxChars] = useState(6);
   const [systemsData, setSystemsData]     = useState<SystemsData | null>(null);
   const [secFilter, setSecFilter]          = useState<SecurityFilter>("all");
   const [refSystemId, setRefSystemId]      = useState<string | null>(null);
@@ -138,6 +220,11 @@ export default function PICalculatorPage() {
         if (ok && data?.systemId) {
           setRefSystemId(String(data.systemId));
           setLocationStatus("ok");
+          if (data.characterCount >= 1) {
+            const clamped = Math.min(data.characterCount, 6);
+            setMaxChars(clamped);
+            setCharCount(clamped);
+          }
         } else if (status === 401) {
           setLocationStatus("unauth");
         } else {
@@ -206,6 +293,8 @@ export default function PICalculatorPage() {
       referenceSystemId: refSystemId ?? undefined,
     });
   }, [systemsData, selectedId, secFilter, refSystemId]);
+
+  const plan = useMemo(() => selectedId ? getProductionPlan(selectedId) : null, [selectedId]);
 
   const filteredProducts = useMemo(() =>
     SELECTABLE_PRODUCTS.filter((p) =>
@@ -532,18 +621,24 @@ export default function PICalculatorPage() {
                     )}
 
                     {compatibleSystems.length > 0 && (
-                      <div className="grid grid-cols-2 gap-1.5">
-                        {compatibleSystems.map((sys) => (
+                      <div className="flex flex-col gap-1">
+                        {compatibleSystems.slice(0, 8).map((sys, idx) => (
                           <div
                             key={sys.systemId}
-                            className="flex items-center gap-2 px-2 py-1.5 rounded-lg"
+                            className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg"
                             style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}
                           >
+                            <span className="text-xs font-mono w-4 shrink-0" style={{ color: "var(--text-muted)" }}>{idx + 1}</span>
                             <Globe size={10} style={{ color: secColor(sys.security), flexShrink: 0 }} />
-                            <span className="text-xs font-medium truncate" style={{ color: "var(--text-primary)" }}>
+                            <span className="text-xs font-medium flex-1 truncate" style={{ color: "var(--text-primary)" }}>
                               {sys.name}
                             </span>
-                            <span className="ml-auto text-xs font-mono shrink-0" style={{ color: secColor(sys.security) }}>
+                            {sys.distance !== undefined && (
+                              <span className="text-xs font-mono shrink-0" style={{ color: "var(--text-muted)" }}>
+                                {(sys.distance * 0.00106).toFixed(1)} AL
+                              </span>
+                            )}
+                            <span className="text-xs font-mono shrink-0" style={{ color: secColor(sys.security) }}>
                               {formatSecurity(sys.security)}
                             </span>
                             <span className="text-xs font-bold shrink-0" style={{ color: secColor(sys.security), fontSize: 10, minWidth: 18 }}>
@@ -551,6 +646,15 @@ export default function PICalculatorPage() {
                             </span>
                           </div>
                         ))}
+                        <a
+                          href="/finder"
+                          className="text-xs text-center py-1 rounded transition-colors"
+                          style={{ color: "var(--accent-lime)", opacity: 0.7 }}
+                        >
+                          {compatibleSystems.length > 8
+                            ? `+ ${compatibleSystems.length - 8} autres → Finder`
+                            : "→ Finder pour explorer"}
+                        </a>
                       </div>
                     )}
                   </div>
@@ -618,13 +722,178 @@ export default function PICalculatorPage() {
                 {/* Chain tree */}
                 {chain && (
                   <div
-                    className="flex-1 rounded-xl p-4 overflow-y-auto"
+                    className="rounded-xl p-4"
                     style={{ background: "var(--card-bg)", border: "1px solid var(--border)" }}
                   >
                     <h3 className="text-sm font-medium mb-3" style={{ color: "var(--text-secondary)" }}>
                       Chaîne de production
                     </h3>
                     <ChainNodeRow node={chain} depth={0} />
+                  </div>
+                )}
+
+                {/* Production plan */}
+                {plan && (
+                  <div
+                    className="rounded-xl p-4"
+                    style={{ background: "var(--card-bg)", border: "1px solid var(--border)" }}
+                  >
+                    <h3 className="text-sm font-medium mb-4" style={{ color: "var(--text-secondary)" }}>
+                      Plan de mise en place
+                    </h3>
+
+                    {/* Extraction roles */}
+                    <div className="mb-4">
+                      <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>Étape 1 — Extraction &amp; raffinage P0 → P1</p>
+                      <div className="flex flex-col gap-2">
+                        {plan.extractions.map((role) => (
+                          <div
+                            key={role.p0.id}
+                            className="flex items-center gap-3 px-3 py-2 rounded-lg"
+                            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}
+                          >
+                            <div className="flex flex-wrap gap-1 flex-1">
+                              {role.planetTypes.map((pt) => (
+                                <span
+                                  key={pt}
+                                  className="text-xs px-1.5 py-0.5 rounded-full"
+                                  style={{
+                                    background: `${PLANET_TYPE_COLORS[pt]}18`,
+                                    color: PLANET_TYPE_COLORS[pt],
+                                    border: `1px solid ${PLANET_TYPE_COLORS[pt]}30`,
+                                    fontSize: 10,
+                                  }}
+                                >
+                                  {PLANET_TYPE_LABELS[pt]}
+                                </span>
+                              ))}
+                            </div>
+                            <div className="text-right shrink-0 text-xs">
+                              <span style={{ color: "var(--text-muted)" }}>{role.p0.name}</span>
+                              <span className="mx-1" style={{ color: "var(--text-muted)" }}>→</span>
+                              <span className="font-medium" style={{ color: "var(--text-primary)" }}>{role.p1.name}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Assembly step */}
+                    <div
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg mb-4 flex-wrap"
+                      style={{ background: `${tierColor}08`, border: `1px solid ${tierColor}25` }}
+                    >
+                      <span className="text-xs" style={{ color: "var(--text-muted)" }}>Étape 2 — Usine</span>
+                      {plan.extractions.map((r, i) => (
+                        <span key={r.p1.id} className="text-xs flex items-center gap-1">
+                          {i > 0 && <span style={{ color: "var(--text-muted)" }}>+</span>}
+                          <span style={{ color: "var(--text-secondary)" }}>{r.p1.name}</span>
+                        </span>
+                      ))}
+                      <span className="text-xs" style={{ color: "var(--text-muted)" }}>→</span>
+                      <span className="text-xs font-bold" style={{ color: tierColor }}>
+                        {plan.finalProduct.name} ×{plan.finalProduct.outputQty}
+                      </span>
+                    </div>
+
+                    {/* Planet configuration guide */}
+                    <div className="mb-4">
+                      <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>Configuration des planètes</p>
+                      <div className="flex flex-col gap-2">
+
+                        {/* Extraction planets */}
+                        {plan.extractions.map((role) => (
+                          <div
+                            key={`cfg-${role.p0.id}`}
+                            className="p-3 rounded-lg"
+                            style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--border)" }}
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>
+                                Planète extraction — {role.p1.name}
+                              </p>
+                              {hasMinerTemplate(role.p1.id) && (
+                                <div className="flex gap-1">
+                                  <button
+                                    onClick={() => downloadMinerTemplate(role.p1.id, false)}
+                                    className="flex items-center gap-1 px-2 py-0.5 rounded text-xs cursor-pointer transition-colors"
+                                    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid var(--border)", color: "var(--text-muted)" }}
+                                    title={`Template miner nullsec — ${role.p1.name}`}
+                                  >
+                                    <Download size={10} />NS
+                                  </button>
+                                  <button
+                                    onClick={() => downloadMinerTemplate(role.p1.id, true)}
+                                    className="flex items-center gap-1 px-2 py-0.5 rounded text-xs cursor-pointer transition-colors"
+                                    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid var(--border)", color: "var(--text-muted)" }}
+                                    title={`Template miner lowsec — ${role.p1.name}`}
+                                  >
+                                    <Download size={10} />LS
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex flex-col gap-0.5" style={{ color: "var(--text-muted)", fontSize: 11 }}>
+                              <p>• 1 ECU avec <strong style={{ color: "var(--text-secondary)" }}>3 à 5 têtes</strong> d'extraction</p>
+                              <p>• 1 Basic Industry Facility (convertit {role.p0.name} → {role.p1.name} en continu)</p>
+                              <p>• Cycle recommandé : <strong style={{ color: "var(--text-secondary)" }}>23h</strong> pour 1 connexion/jour</p>
+                            </div>
+                          </div>
+                        ))}
+
+                        {/* Factory planet */}
+                        <div
+                          className="p-3 rounded-lg"
+                          style={{ background: `${tierColor}06`, border: `1px solid ${tierColor}20` }}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-xs font-medium" style={{ color: tierColor }}>
+                              Planète usine — {plan.finalProduct.name}
+                            </p>
+                            {hasFactoryTemplate(selectedId) && (
+                              <button
+                                onClick={handleDownloadFactory}
+                                disabled={!!downloading}
+                                className="flex items-center gap-1 px-2 py-0.5 rounded text-xs cursor-pointer transition-colors disabled:opacity-50"
+                                style={{ background: `${tierColor}18`, border: `1px solid ${tierColor}40`, color: tierColor }}
+                              >
+                                <Download size={10} />Template
+                              </button>
+                            )}
+                          </div>
+                          <div className="flex flex-col gap-0.5" style={{ color: "var(--text-muted)", fontSize: 11 }}>
+                            <p>• Pas d'extracteur ici</p>
+                            <p>• <strong style={{ color: "var(--text-secondary)" }}>2 à 4 Advanced Industry Facilities</strong> (selon votre skill CCU)</p>
+                            <p>• Importe les P1 depuis vos planètes d'extraction via les routes</p>
+                            <p>• 1 Launch Pad recommandé pour le stockage intermédiaire</p>
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+
+                    {/* Char count picker */}
+                    <div>
+                      <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>Combien de personnages ?</p>
+                      <div className="flex gap-1 mb-3">
+                        {Array.from({ length: maxChars }, (_, i) => i + 1).map((n) => (
+                          <button
+                            key={n}
+                            onClick={() => setCharCount(n)}
+                            className="px-2.5 py-0.5 rounded text-xs transition-colors cursor-pointer"
+                            style={{
+                              background: charCount === n ? `${tierColor}20` : "rgba(255,255,255,0.04)",
+                              color: charCount === n ? tierColor : "var(--text-muted)",
+                              border: `1px solid ${charCount === n ? `${tierColor}50` : "var(--border)"}`,
+                            }}
+                          >
+                            {n}
+                          </button>
+                        ))}
+                      </div>
+
+                      <CharPlanAdvice plan={plan} charCount={charCount} tierColor={tierColor} />
+                    </div>
                   </div>
                 )}
               </>

@@ -1,7 +1,7 @@
 // PI System Finder — utilities for finding compatible systems per product
 // Uses static data from /public/data/systems-planets.json
 
-import { ALL_PRODUCTS, P0_RESOURCES, buildChain, type PlanetType, type PIProduct, type ChainNode } from "@/data/pi-chains";
+import { ALL_PRODUCTS, P1_PRODUCTS, buildChain, type PlanetType, type PIProduct, type ChainNode } from "@/data/pi-chains";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -39,7 +39,43 @@ export interface SystemCoverage {
 
 // ─── P0 chain resolution ────────────────────────────────────────────────────
 
-const P0_BY_ID = Object.fromEntries(P0_RESOURCES.map((r) => [r.id, r]));
+// P0 → P1 mapping (each P1 has exactly one P0 input)
+const P0_TO_P1: Record<string, PIProduct> = Object.fromEntries(
+  P1_PRODUCTS
+    .filter((p1) => p1.inputs?.length === 1)
+    .map((p1) => [p1.inputs![0].productId, p1])
+);
+
+export interface ExtractionRole {
+  p0: PIProduct;          // raw resource (P0)
+  p1: PIProduct;          // basic commodity (P1)
+  planetTypes: PlanetType[];
+}
+
+export interface ProductionPlan {
+  extractions: ExtractionRole[];   // one per unique P0 resource needed
+  finalProduct: PIProduct;
+  minPlanetsPerChar: number;       // minimum planets for a self-sufficient setup
+}
+
+/** Builds a production plan: extraction roles + assembly info for a given product. */
+export function getProductionPlan(productId: string): ProductionPlan | null {
+  const product = ALL_PRODUCTS[productId];
+  if (!product || product.tier === "P0" || product.tier === "P1") return null;
+
+  const p0Reqs = getP0Requirements(productId);
+  const extractions = p0Reqs
+    .map((req): ExtractionRole | null => {
+      const p1 = P0_TO_P1[req.resource.id];
+      if (!p1) return null;
+      return { p0: req.resource, p1, planetTypes: req.compatibleTypes };
+    })
+    .filter((r): r is ExtractionRole => r !== null);
+
+  const tierDepth = product.tier === "P2" ? 1 : product.tier === "P3" ? 2 : 3;
+  const minPlanetsPerChar = extractions.length + tierDepth;
+  return { extractions, finalProduct: product, minPlanetsPerChar };
+}
 
 /** Returns the deduplicated P0 resources needed to produce a given product. */
 export function getP0Requirements(productId: string): P0Requirement[] {
@@ -141,7 +177,6 @@ export function findCompatibleSystems(
   const results: SystemCoverage[] = [];
 
   for (const [id, sys] of Object.entries(data)) {
-    if (id === referenceSystemId) continue;
     if (!matchesSecurity(sys.s, filter)) continue;
 
     const { covered, missing } = checkSystemCoverage(sys.t, p0Reqs);

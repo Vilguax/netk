@@ -41,6 +41,7 @@ export async function GET() {
       systemId: location.solar_system_id,
       characterId: String(character.characterId),
       characterName: character.characterName,
+      characterCount: characters.length,
     });
   } catch {
     return NextResponse.json({ error: "Erreur ESI" }, { status: 502 });
