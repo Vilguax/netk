@@ -3,6 +3,17 @@ import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import Discord from "next-auth/providers/discord";
 
+function getCookieOptions() {
+  const authUrl = process.env.AUTH_URL;
+  const isHttps = authUrl?.startsWith("https://") ?? false;
+  const cookieDomain = process.env.AUTH_COOKIE_DOMAIN;
+
+  return {
+    secure: isHttps,
+    domain: cookieDomain || undefined,
+  };
+}
+
 // Provider type for UI styling
 export type AuthProvider = "credentials" | "google" | "discord";
 
@@ -112,11 +123,7 @@ export const authConfig: NextAuthConfig = {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production",
-        domain:
-          process.env.NODE_ENV === "production"
-            ? process.env.AUTH_COOKIE_DOMAIN
-            : undefined,
+        ...getCookieOptions(),
       },
     },
   },
