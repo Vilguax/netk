@@ -480,9 +480,23 @@ class EsiClient {
       expiry_time?: string;
       install_time?: string;
       last_cycle_start?: string;
+      schematic_id?: number;
+      extractor_details?: {
+        product_type_id?: number;
+        qty_per_cycle?: number;
+        head_radius?: number;
+        heads?: Array<{ head_id: number; latitude: number; longitude: number }>;
+      };
     }>;
     links: unknown[];
-    routes: unknown[];
+    routes: Array<{
+      content_type_id: number;
+      destination_pin_id: number;
+      quantity: number;
+      route_id: number;
+      source_pin_id: number;
+      waypoints: number[];
+    }>;
   }> {
     return this.fetch(
       `/characters/${characterId}/planets/${planetId}/?datasource=tranquility`,
