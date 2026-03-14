@@ -85,7 +85,7 @@ export default function SkillsPage() {
 
   const selected = characters.find((c) => c.characterId === selectedCharId);
   const constraints = selected?.skills ? calculateConstraints(selected.skills) : null;
-  const recommendation = constraints ? getRecommendedSetup(constraints) : null;
+  const recommendation = constraints && selected?.skills ? getRecommendedSetup(constraints, selected.skills) : null;
   const skillPlan = selected?.skills ? getSkillPlan(selected.skills) : null;
 
   function handleCopyPlan() {
@@ -195,7 +195,8 @@ export default function SkillsPage() {
                       Contraintes calculées
                     </h3>
                     <ConstraintRow label="Planètes max" value={`${constraints.maxPlanets}`} />
-                    <ConstraintRow label="Installations par planète" value={`${constraints.maxInstallationsPerPlanet}`} />
+                    <ConstraintRow label="CPU disponible" value={`${constraints.cpu.toLocaleString()} tf`} />
+                    <ConstraintRow label="Power Grid" value={`${constraints.power.toLocaleString()} MW`} />
                     <ConstraintRow label="Production P2" value={constraints.canRunP2 ? "✓ Possible" : "✗ Impossible"} color={constraints.canRunP2 ? "var(--accent-green)" : "var(--accent-red)"} />
                     <ConstraintRow label="Production P3" value={constraints.canRunP3 ? "✓ Possible" : "✗ Impossible"} color={constraints.canRunP3 ? "var(--accent-green)" : "var(--accent-red)"} />
                     <ConstraintRow label="Production P4" value={constraints.canRunP4 ? "✓ Possible" : "✗ Impossible"} color={constraints.canRunP4 ? "var(--accent-green)" : "var(--accent-red)"} />
