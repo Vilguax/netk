@@ -445,9 +445,9 @@ export default function CraftPage() {
       <div className="flex-1 ml-56 flex flex-col min-h-screen">
         <Header title="Craft" subtitle="Visualiseur de chaînes PI" />
 
-        <div className="p-6 flex gap-5 items-start">
+        <div className="p-6">
           {/* Main grid */}
-          <div className="flex-1 min-w-0">
+          <div>
             {/* Toolbar */}
             <div className="flex items-center justify-between mb-6">
               <p className="text-sm" style={{ color: "var(--text-muted)" }}>
@@ -546,9 +546,9 @@ export default function CraftPage() {
             </div>
           </div>
 
-          {/* Detail panel */}
+          {/* Detail panel — fixed overlay so the grid always gets full width */}
           {selected && (
-            <div style={{ width: 256, flexShrink: 0 }}>
+            <div style={{ position: "fixed", right: 16, top: 88, width: 260, zIndex: 40, maxHeight: "calc(100vh - 104px)", overflowY: "auto" }}>
               <DetailPanel selected={selected} onClose={() => setSelected(null)} />
             </div>
           )}
