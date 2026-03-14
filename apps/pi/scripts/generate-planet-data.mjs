@@ -4,7 +4,7 @@
 //   mapSolarSystems.csv → system name, security, region
 //
 // Output: apps/pi/public/data/systems-planets.json
-// Format: { "30000142": { n: "Jita", s: 0.95, r: 10000002, t: ["barren","temperate","gas","lava","ice"] }, ... }
+// Format: { "30000142": { n: "Jita", s: 0.95, r: 10000002, t: {"barren":1,"temperate":1,"gas":1,"lava":1,"ice":1} }, ... }
 //
 // Usage: node apps/pi/scripts/generate-planet-data.mjs
 
@@ -123,7 +123,7 @@ const DN_COL_SYSTEM_ID = 3;
 
 async function loadPlanetTypes() {
   console.log("Parsing mapDenormalize.csv (planet rows only)...");
-  const planets = {}; // solarSystemID → Set<typeName>
+  const planets = {}; // solarSystemID → { typeName: count }
   let lineCount = 0;
   let piCount = 0;
 
@@ -150,8 +150,8 @@ async function loadPlanetTypes() {
     const typeName = PLANET_TYPES[typeId];
     if (!typeName) continue;
 
-    if (!planets[systemId]) planets[systemId] = new Set();
-    planets[systemId].add(typeName);
+    if (!planets[systemId]) planets[systemId] = {};
+    planets[systemId][typeName] = (planets[systemId][typeName] ?? 0) + 1;
     piCount++;
   }
 
@@ -183,7 +183,7 @@ async function main() {
       x: meta.x,
       y: meta.y,
       z: meta.z,
-      t: [...types],
+      t: types,
     };
   }
 

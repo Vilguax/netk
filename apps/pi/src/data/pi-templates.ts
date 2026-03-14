@@ -98,18 +98,17 @@ function buildUrl(filename: string): string {
   return BASE_URL + filename;
 }
 
-export async function downloadFactoryTemplate(productId: string): Promise<void> {
+export async function copyFactoryTemplate(productId: string): Promise<void> {
   const filename = FACTORY_TEMPLATES[productId];
   if (!filename) throw new Error(`No factory template for: ${productId}`);
 
   const res = await fetch(buildUrl(filename));
   if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
 
-  const blob = await res.blob();
-  triggerDownload(blob, filename);
+  await navigator.clipboard.writeText(await res.text());
 }
 
-export async function downloadMinerTemplate(
+export async function copyMinerTemplate(
   productId: string,
   lowSec = false,
 ): Promise<void> {
@@ -120,15 +119,5 @@ export async function downloadMinerTemplate(
   const res = await fetch(buildUrl(filename));
   if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
 
-  const blob = await res.blob();
-  triggerDownload(blob, filename);
-}
-
-function triggerDownload(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
+  await navigator.clipboard.writeText(await res.text());
 }

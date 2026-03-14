@@ -3,7 +3,26 @@
     "allow": [
       "Bash(npm run build)",
       "Bash(grep -E \"^\\\\s{0,4}[a-z].*:\" c:/Users/axelp/Desktop/netk/docker-compose.prod.yml)",
-      "Bash(npx tsc --noEmit -p apps/pi/tsconfig.json)"
+      "Bash(npx tsc --noEmit -p apps/pi/tsconfig.json)",
+      "Bash(xargs grep:*)",
+      "Bash(ls apps/pi/scripts/_map*)",
+      "Read(//c/Users/axelp/Desktop/netk/**)",
+      "Bash(powershell -c \"\\(Get-Item ''apps/pi/public/data/systems-planets.json''\\).LastWriteTime; \\(Get-Item ''apps/pi/public/data/systems-planets.json''\\).Length\")",
+      "Bash(node -e \"const d=require\\(''./apps/pi/public/data/systems-planets.json''\\); const entry=Object.entries\\(d\\).find\\(\\([k,v]\\)=>v.n===''C-J6MT''\\); console.log\\(entry?.[0], JSON.stringify\\(entry?.[1]\\)\\);\")",
+      "WebFetch(domain:esi.evetech.net)",
+      "Bash(curl -s \"https://esi.evetech.net/latest/universe/systems/?datasource=tranquility\")",
+      "Bash(curl -s \"https://esi.evetech.net/latest/search/?categories=solar_system&search=4DS-OI&datasource=tranquility\")",
+      "Bash(curl -s \"https://esi.evetech.net/latest/search/?categories=solar_system&search=4DS-OI&datasource=tranquility&strict=false\")",
+      "Bash(for planet_id in 40047225 40047226 40047228 40047231 40047233 40047251)",
+      "Bash(do echo:*)",
+      "Bash(for type_id in 2016 11 13)",
+      "Bash(node scripts/generate-planet-data.mjs)",
+      "Bash(node -e \"const d=require\\(''./apps/pi/public/data/systems-planets.json''\\); console.log\\(''C-J6MT:'', JSON.stringify\\(d[''30000772'']\\)\\); console.log\\(''4DS-OI:'', JSON.stringify\\(d[''30000749'']\\)\\);\")",
+      "Bash(node -e \"const fs=require\\(''fs''\\); const d=JSON.parse\\(fs.readFileSync\\(''apps/pi/public/data/systems-planets.json'',''utf8''\\)\\); console.log\\(''C-J6MT:'', JSON.stringify\\(d[''30000772'']\\)\\); console.log\\(''4DS-OI:'', JSON.stringify\\(d[''30000749'']\\)\\);\")",
+      "Bash(node -e \"const fs=require\\(''fs''\\); const d=JSON.parse\\(fs.readFileSync\\(''c:/Users/axelp/Desktop/netk/apps/pi/public/data/systems-planets.json'',''utf8''\\)\\); console.log\\(''C-J6MT:'', JSON.stringify\\(d[''30000772'']\\)\\); console.log\\(''4DS-OI:'', JSON.stringify\\(d[''30000749'']\\)\\);\")",
+      "Bash(npx tsc:*)",
+      "Bash(node apps/pi/scripts/generate-planet-data.mjs)",
+      "Bash(node -e \":*)"
     ]
   }
 }

@@ -156,14 +156,14 @@ export const ALL_PRODUCTS: Record<string, PIProduct> = [
 // ─── Planet type labels & colors ───────────────────────────────────────────
 
 export const PLANET_TYPE_LABELS: Record<PlanetType, string> = {
-  barren:    "Désertique",
-  gas:       "Gazeuse",
-  ice:       "Glaciale",
-  lava:      "Volcanique",
-  oceanic:   "Océanique",
+  barren:    "Barren",
+  gas:       "Gas",
+  ice:       "Ice",
+  lava:      "Lava",
+  oceanic:   "Oceanic",
   plasma:    "Plasma",
-  storm:     "Tempête",
-  temperate: "Tempérée",
+  storm:     "Storm",
+  temperate: "Temperate",
 };
 
 export const PLANET_TYPE_COLORS: Record<PlanetType, string> = {

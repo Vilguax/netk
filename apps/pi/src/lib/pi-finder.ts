@@ -12,7 +12,7 @@ export interface SystemEntry {
   x: number;          // coordinate (divided by 1e13)
   y: number;
   z: number;
-  t: PlanetType[];    // planet types present
+  t: Partial<Record<PlanetType, number>>;  // planet type → count
 }
 
 export type SystemsData = Record<string, SystemEntry>;
@@ -29,7 +29,7 @@ export interface SystemCoverage {
   name: string;
   security: number;
   regionId: number;
-  planetTypes: PlanetType[];
+  planetTypes: Partial<Record<PlanetType, number>>;
   coveredResources: string[];    // P0 resource IDs covered
   missingResources: string[];    // P0 resource IDs missing
   coverageRatio: number;         // 0-1
@@ -114,15 +114,14 @@ export function getP0Requirements(productId: string): P0Requirement[] {
  * returns which resources are covered and which are missing.
  */
 export function checkSystemCoverage(
-  systemPlanetTypes: PlanetType[],
+  systemPlanetTypes: Partial<Record<PlanetType, number>>,
   p0Requirements: P0Requirement[],
 ): { covered: string[]; missing: string[] } {
-  const sysTypes = new Set(systemPlanetTypes);
   const covered: string[] = [];
   const missing: string[] = [];
 
   for (const req of p0Requirements) {
-    const hasCoverage = req.compatibleTypes.some((t) => sysTypes.has(t));
+    const hasCoverage = req.compatibleTypes.some((t) => (systemPlanetTypes[t] ?? 0) > 0);
     if (hasCoverage) {
       covered.push(req.resource.id);
     } else {

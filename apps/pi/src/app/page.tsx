@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { ChevronRight, ChevronDown, Globe, Search, Target, Download, MapPin, Navigation } from "lucide-react";
+import { ChevronRight, ChevronDown, Globe, Search, Target, Copy, MapPin, Navigation } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import {
@@ -21,8 +21,8 @@ import {
 import {
   hasFactoryTemplate,
   hasMinerTemplate,
-  downloadFactoryTemplate,
-  downloadMinerTemplate,
+  copyFactoryTemplate,
+  copyMinerTemplate,
 } from "@/data/pi-templates";
 import {
   findCompatibleSystems,
@@ -330,19 +330,19 @@ export default function PICalculatorPage() {
     return outputPerDay * perUnit;
   }, [outputPerDay, iskPerUnit]);
 
-  async function handleDownloadFactory() {
+  async function handleCopyFactory() {
     if (!selectedId || downloading) return;
     setDownloading("factory");
-    try { await downloadFactoryTemplate(selectedId); }
-    catch (e) { console.error("Template download failed:", e); }
+    try { await copyFactoryTemplate(selectedId); }
+    catch (e) { console.error("Template copy failed:", e); }
     finally { setDownloading(null); }
   }
 
-  async function handleDownloadMiner(lowSec: boolean) {
+  async function handleCopyMiner(lowSec: boolean) {
     if (!selectedId || downloading) return;
     setDownloading(lowSec ? "miner-ls" : "miner-ns");
-    try { await downloadMinerTemplate(selectedId, lowSec); }
-    catch (e) { console.error("Miner template download failed:", e); }
+    try { await copyMinerTemplate(selectedId, lowSec); }
+    catch (e) { console.error("Miner template copy failed:", e); }
     finally { setDownloading(null); }
   }
 
@@ -456,37 +456,37 @@ export default function PICalculatorPage() {
                   )}
                   {hasFactoryTemplate(selectedId) && (
                     <button
-                      onClick={handleDownloadFactory}
+                      onClick={handleCopyFactory}
                       disabled={!!downloading}
                       className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                       style={{ background: `${tierColor}18`, border: `1px solid ${tierColor}40`, color: tierColor }}
                       title="Télécharger le template factory pour import en jeu"
                     >
-                      <Download size={14} />
-                      {downloading === "factory" ? "…" : "Template factory"}
+                      <Copy size={14} />
+                      {downloading === "factory" ? "Copié !" : "Copier template"}
                     </button>
                   )}
                   {hasMinerTemplate(selectedId) && (
                     <div className="flex gap-2">
                       <button
-                        onClick={() => handleDownloadMiner(false)}
+                        onClick={() => handleCopyMiner(false)}
                         disabled={!!downloading}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                         style={{ background: `${tierColor}18`, border: `1px solid ${tierColor}40`, color: tierColor }}
                         title="Template miner nullsec"
                       >
-                        <Download size={14} />
-                        {downloading === "miner-ns" ? "…" : "NS"}
+                        <Copy size={14} />
+                        {downloading === "miner-ns" ? "Copié !" : "NS"}
                       </button>
                       <button
-                        onClick={() => handleDownloadMiner(true)}
+                        onClick={() => handleCopyMiner(true)}
                         disabled={!!downloading}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                         style={{ background: `${tierColor}18`, border: `1px solid ${tierColor}40`, color: tierColor }}
                         title="Template miner lowsec"
                       >
-                        <Download size={14} />
-                        {downloading === "miner-ls" ? "…" : "LS"}
+                        <Copy size={14} />
+                        {downloading === "miner-ls" ? "Copié !" : "LS"}
                       </button>
                     </div>
                   )}
@@ -815,20 +815,20 @@ export default function PICalculatorPage() {
                               {hasMinerTemplate(role.p1.id) && (
                                 <div className="flex gap-1">
                                   <button
-                                    onClick={() => downloadMinerTemplate(role.p1.id, false)}
+                                    onClick={() => copyMinerTemplate(role.p1.id, false)}
                                     className="flex items-center gap-1 px-2 py-0.5 rounded text-xs cursor-pointer transition-colors"
                                     style={{ background: "rgba(255,255,255,0.06)", border: "1px solid var(--border)", color: "var(--text-muted)" }}
                                     title={`Template miner nullsec — ${role.p1.name}`}
                                   >
-                                    <Download size={10} />NS
+                                    <Copy size={10} />NS
                                   </button>
                                   <button
-                                    onClick={() => downloadMinerTemplate(role.p1.id, true)}
+                                    onClick={() => copyMinerTemplate(role.p1.id, true)}
                                     className="flex items-center gap-1 px-2 py-0.5 rounded text-xs cursor-pointer transition-colors"
                                     style={{ background: "rgba(255,255,255,0.06)", border: "1px solid var(--border)", color: "var(--text-muted)" }}
                                     title={`Template miner lowsec — ${role.p1.name}`}
                                   >
-                                    <Download size={10} />LS
+                                    <Copy size={10} />LS
                                   </button>
                                 </div>
                               )}
@@ -852,12 +852,12 @@ export default function PICalculatorPage() {
                             </p>
                             {hasFactoryTemplate(selectedId) && (
                               <button
-                                onClick={handleDownloadFactory}
+                                onClick={handleCopyFactory}
                                 disabled={!!downloading}
                                 className="flex items-center gap-1 px-2 py-0.5 rounded text-xs cursor-pointer transition-colors disabled:opacity-50"
                                 style={{ background: `${tierColor}18`, border: `1px solid ${tierColor}40`, color: tierColor }}
                               >
-                                <Download size={10} />Template
+                                <Copy size={10} />Copier
                               </button>
                             )}
                           </div>

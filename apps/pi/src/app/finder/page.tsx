@@ -21,13 +21,16 @@ type TierFilter = "all" | "P2" | "P3" | "P4";
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
-function PlanetBadge({ type }: { type: PlanetType }) {
+function PlanetBadge({ type, count }: { type: PlanetType; count?: number }) {
   return (
     <span
-      className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium"
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium"
       style={{ background: PLANET_TYPE_COLORS[type] + "22", color: PLANET_TYPE_COLORS[type], border: `1px solid ${PLANET_TYPE_COLORS[type]}44` }}
     >
       {PLANET_TYPE_LABELS[type]}
+      {count !== undefined && count > 1 && (
+        <span className="opacity-70">×{count}</span>
+      )}
     </span>
   );
 }
@@ -48,10 +51,11 @@ function CoverageBar({ ratio }: { ratio: number }) {
   );
 }
 
-function ProductRow({ item, expanded, onToggle }: {
+function ProductRow({ item, expanded, onToggle, systemPlanetTypes }: {
   item: ProductFeasibility;
   expanded: boolean;
   onToggle: () => void;
+  systemPlanetTypes: Partial<Record<PlanetType, number>>;
 }) {
   const tierCfg = TIER_CONFIG[item.product.tier as keyof typeof TIER_CONFIG];
 
@@ -107,7 +111,17 @@ function ProductRow({ item, expanded, onToggle }: {
                   </span>
                   <div className="flex gap-1 flex-wrap">
                     {req.compatibleTypes.map((t) => (
-                      <PlanetBadge key={t} type={t} />
+                      <span
+                        key={t}
+                        className="text-xs px-1.5 py-0.5 rounded font-medium"
+                        style={{
+                          background: (systemPlanetTypes[t] ?? 0) > 0 ? PLANET_TYPE_COLORS[t] + "30" : "rgba(255,255,255,0.04)",
+                          color: (systemPlanetTypes[t] ?? 0) > 0 ? PLANET_TYPE_COLORS[t] : "rgba(255,255,255,0.2)",
+                          border: `1px solid ${(systemPlanetTypes[t] ?? 0) > 0 ? PLANET_TYPE_COLORS[t] + "50" : "rgba(255,255,255,0.08)"}`,
+                        }}
+                      >
+                        {PLANET_TYPE_LABELS[t]}
+                      </span>
                     ))}
                   </div>
                 </div>
@@ -297,16 +311,16 @@ export default function FinderPage() {
                       {secLabel(sys.s)}
                     </span>
                     <div className="flex gap-1 shrink-0">
-                      {sys.t.slice(0, 3).map((t) => (
+                      {Object.entries(sys.t).slice(0, 3).map(([t, cnt]) => (
                         <span
                           key={t}
                           className="w-2 h-2 rounded-full"
                           style={{ background: PLANET_TYPE_COLORS[t as PlanetType] }}
-                          title={PLANET_TYPE_LABELS[t as PlanetType]}
+                          title={`${PLANET_TYPE_LABELS[t as PlanetType]}${(cnt ?? 1) > 1 ? ` ×${cnt}` : ""}`}
                         />
                       ))}
-                      {sys.t.length > 3 && (
-                        <span className="text-xs" style={{ color: "var(--text-muted)", fontSize: 10 }}>+{sys.t.length - 3}</span>
+                      {Object.keys(sys.t).length > 3 && (
+                        <span className="text-xs" style={{ color: "var(--text-muted)", fontSize: 10 }}>+{Object.keys(sys.t).length - 3}</span>
                       )}
                     </div>
                   </button>
@@ -329,7 +343,9 @@ export default function FinderPage() {
                   </span>
                 </div>
                 <div className="flex gap-1.5 flex-wrap">
-                  {selectedSystem.t.map((t) => <PlanetBadge key={t} type={t} />)}
+                  {(Object.entries(selectedSystem.t) as [PlanetType, number][]).map(([t, cnt]) => (
+                    <PlanetBadge key={t} type={t} count={cnt} />
+                  ))}
                 </div>
               </div>
 
@@ -363,6 +379,7 @@ export default function FinderPage() {
                     item={item}
                     expanded={expandedId === item.product.id}
                     onToggle={() => setExpandedId(expandedId === item.product.id ? null : item.product.id)}
+                    systemPlanetTypes={selectedSystem.t}
                   />
                 ))}
               </div>
