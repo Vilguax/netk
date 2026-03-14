@@ -1,6 +1,10 @@
 ﻿"use client";
 
 import { useState, useEffect } from "react";
+import {
+  TrendingUp, Target, Scan, Calculator, Map, BarChart2, Globe, Factory,
+  type LucideIcon,
+} from "lucide-react";
 
 type AppStatus = "online" | "offline" | "maintenance" | "coming";
 
@@ -10,7 +14,7 @@ interface ModuleConfig {
   url: string;
   healthUrl: string;
   gradient: string;
-  icon: "chart" | "crosshair" | "factory" | "radar" | "calculator" | "compass" | "market";
+  icon: LucideIcon;
   defaultStatus: AppStatus;
 }
 
@@ -21,7 +25,7 @@ const MODULE_CONFIGS: ModuleConfig[] = [
     url: process.env.NEXT_PUBLIC_FLIPPER_URL || "http://localhost:3001",
     healthUrl: (process.env.NEXT_PUBLIC_FLIPPER_URL || "http://localhost:3001") + "/api/health",
     gradient: "from-blue-500 to-cyan-400",
-    icon: "chart",
+    icon: TrendingUp,
     defaultStatus: "online",
   },
   {
@@ -30,7 +34,7 @@ const MODULE_CONFIGS: ModuleConfig[] = [
     url: process.env.NEXT_PUBLIC_RATTING_URL || "http://localhost:3002",
     healthUrl: (process.env.NEXT_PUBLIC_RATTING_URL || "http://localhost:3002") + "/api/health",
     gradient: "from-emerald-500 to-green-400",
-    icon: "crosshair",
+    icon: Target,
     defaultStatus: "online",
   },
   {
@@ -39,7 +43,7 @@ const MODULE_CONFIGS: ModuleConfig[] = [
     url: process.env.NEXT_PUBLIC_ROCK_RADAR_URL || "http://localhost:3003",
     healthUrl: (process.env.NEXT_PUBLIC_ROCK_RADAR_URL || "http://localhost:3003") + "/api/health",
     gradient: "from-amber-500 to-yellow-400",
-    icon: "radar",
+    icon: Scan,
     defaultStatus: "online",
   },
   {
@@ -48,7 +52,7 @@ const MODULE_CONFIGS: ModuleConfig[] = [
     url: process.env.NEXT_PUBLIC_APPRAISAL_URL || "http://localhost:3004",
     healthUrl: (process.env.NEXT_PUBLIC_APPRAISAL_URL || "http://localhost:3004") + "/api/health",
     gradient: "from-violet-500 to-purple-400",
-    icon: "calculator",
+    icon: Calculator,
     defaultStatus: "online",
   },
   {
@@ -57,7 +61,7 @@ const MODULE_CONFIGS: ModuleConfig[] = [
     url: process.env.NEXT_PUBLIC_FLEET_URL || "http://localhost:3005",
     healthUrl: (process.env.NEXT_PUBLIC_FLEET_URL || "http://localhost:3005") + "/api/health",
     gradient: "from-cyan-500 to-teal-400",
-    icon: "compass",
+    icon: Map,
     defaultStatus: "online",
   },
   {
@@ -66,7 +70,7 @@ const MODULE_CONFIGS: ModuleConfig[] = [
     url: process.env.NEXT_PUBLIC_MARKET_URL || "http://localhost:3006",
     healthUrl: (process.env.NEXT_PUBLIC_MARKET_URL || "http://localhost:3006") + "/api/health",
     gradient: "from-red-500 to-orange-400",
-    icon: "market",
+    icon: BarChart2,
     defaultStatus: "online",
   },
   {
@@ -75,7 +79,7 @@ const MODULE_CONFIGS: ModuleConfig[] = [
     url: process.env.NEXT_PUBLIC_PI_URL || "http://localhost:3007",
     healthUrl: (process.env.NEXT_PUBLIC_PI_URL || "http://localhost:3007") + "/api/health",
     gradient: "from-lime-500 to-green-400",
-    icon: "factory",
+    icon: Globe,
     defaultStatus: "online",
   },
   {
@@ -84,7 +88,7 @@ const MODULE_CONFIGS: ModuleConfig[] = [
     url: "#",
     healthUrl: "",
     gradient: "from-pink-500 to-rose-400",
-    icon: "factory",
+    icon: Factory,
     defaultStatus: "coming",
   },
 ];
@@ -164,57 +168,17 @@ function ModuleCard({
   description,
   href,
   gradient,
-  icon,
+  icon: Icon,
   status,
 }: {
   name: string;
   description: string;
   href: string;
   gradient: string;
-  icon: "chart" | "crosshair" | "factory" | "radar" | "calculator" | "compass" | "market";
+  icon: LucideIcon;
   status: AppStatus;
 }) {
   const isDisabled = status !== "online";
-
-  const icons = {
-    chart: (
-      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
-      </svg>
-    ),
-    crosshair: (
-      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8V4m0 4a4 4 0 100 8 4 4 0 000-8zm0 12v-4m-8-4h4m8 0h4" />
-      </svg>
-    ),
-    factory: (
-      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-      </svg>
-    ),
-    radar: (
-      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 2a10 10 0 1010 10M12 2v10l7.07 7.07" />
-        <circle cx="12" cy="12" r="3" strokeWidth={1.5} />
-      </svg>
-    ),
-    calculator: (
-      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-      </svg>
-    ),
-    compass: (
-      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <circle cx="12" cy="12" r="10" strokeWidth={1.5} />
-        <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} />
-      </svg>
-    ),
-    market: (
-      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M2 20h20M5 20V9l3-6h8l3 6v11M9 20v-5h6v5M9 9h6" />
-      </svg>
-    ),
-  };
 
   const statusBadge = {
     online: (
@@ -252,7 +216,7 @@ function ModuleCard({
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className={`p-3 rounded-xl bg-gradient-to-br ${gradient} text-white`}>
-            {icons[icon]}
+            <Icon size={32} strokeWidth={1.5} />
           </div>
           {statusBadge[status]}
         </div>

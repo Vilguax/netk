@@ -1,3 +1,13 @@
+import { NextResponse } from "next/server";
+
 export async function GET() {
-  return Response.json({ status: "ok", app: "pi" });
+  return NextResponse.json(
+    { status: "online", app: "pi" },
+    {
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET",
+      },
+    }
+  );
 }
