@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Clock, Plus, Trash2, Globe, RefreshCw, AlertTriangle, Zap, WifiOff, Navigation, ChevronDown, Check } from "lucide-react";
+import { Clock, Plus, Trash2, Globe, RefreshCw, AlertTriangle, Zap, WifiOff, Navigation, Check } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { PLANET_TYPE_LABELS, PLANET_TYPE_COLORS, type PlanetType } from "@/data/pi-chains";
@@ -116,26 +116,23 @@ function ExtractorCard({ extractor, planetType }: { extractor: Extractor; planet
 function AutoPlanetCard({
   planet,
   characterName,
-  destoCharId,
-  hasDestoChar,
+  characterId,
 }: {
   planet: AutoPlanet;
   characterName: string;
-  destoCharId: string | null;
-  hasDestoChar: boolean;
+  characterId: string;
 }) {
   const planetColor = PLANET_TYPE_COLORS[planet.planetType as PlanetType] ?? "#64748b";
   const activeExtractors = planet.extractors.filter((e) => e.expiryTime);
   const [destoState, setDestoState] = useState<"idle" | "loading" | "ok" | "err">("idle");
 
   async function setDesto() {
-    if (!destoCharId) return;
     setDestoState("loading");
     try {
       const r = await fetch("/api/waypoint", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ characterId: destoCharId, systemId: planet.solarSystemId }),
+        body: JSON.stringify({ characterId, systemId: planet.solarSystemId }),
       });
       setDestoState(r.ok ? "ok" : "err");
     } catch {
@@ -167,10 +164,9 @@ function AutoPlanetCard({
             {PLANET_TYPE_LABELS[planet.planetType as PlanetType] ?? planet.planetType}
           </span>
           <span className="text-xs" style={{ color: "var(--text-muted)" }}>CC {planet.upgradeLevel}</span>
-          {hasDestoChar && (
-            <button
+          <button
               onClick={setDesto}
-              disabled={destoState === "loading" || !destoCharId}
+              disabled={destoState === "loading"}
               title={`Set destination → ${planet.systemName}`}
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer disabled:opacity-50 transition-all duration-150"
               style={{
@@ -191,7 +187,6 @@ function AutoPlanetCard({
               {destoState === "ok" ? <Check size={11} /> : destoState === "err" ? <AlertTriangle size={11} /> : <Navigation size={11} />}
               {destoState === "ok" ? "Défini !" : destoState === "err" ? "Erreur" : destoState === "loading" ? "…" : "Set destination"}
             </button>
-          )}
         </div>
       </div>
 
@@ -212,24 +207,13 @@ function AutoMode() {
   const [characters, setCharacters] = useState<AutoCharacter[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastFetch, setLastFetch] = useState<Date | null>(null);
-  const [destoCharId, setDestoCharId] = useState<string | null>(null);
 
   const fetchColonies = useCallback(() => {
     setLoading(true);
     fetch("/api/colonies")
       .then((r) => r.json())
       .then((data) => {
-        if (data.characters) {
-          setCharacters(data.characters);
-          // Auto-select first character with waypoint scope
-          setDestoCharId((prev) => {
-            if (prev) return prev;
-            const eligible = (data.characters as AutoCharacter[]).find(
-              (c) => c.status === "ok"
-            );
-            return eligible?.characterId ?? null;
-          });
-        }
+        if (data.characters) setCharacters(data.characters);
         setLastFetch(new Date());
       })
       .catch(() => {})
@@ -251,9 +235,6 @@ function AutoMode() {
     return aExpiry - bExpiry;
   });
 
-  // Characters eligible for set-desto (need waypoint scope — included in default scopes)
-  const destoEligible = characters.filter((c) => c.status === "ok");
-
   return (
     <div>
       {/* Toolbar */}
@@ -270,25 +251,6 @@ function AutoMode() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          {destoEligible.length > 0 && (
-            <div className="flex items-center gap-1.5">
-              <Navigation size={12} style={{ color: "var(--text-muted)" }} />
-              <span className="text-xs" style={{ color: "var(--text-muted)" }}>Desto via</span>
-              <div className="relative">
-                <select
-                  value={destoCharId ?? ""}
-                  onChange={(e) => setDestoCharId(e.target.value || null)}
-                  className="pl-2 pr-6 py-1 text-xs rounded-lg outline-none cursor-pointer appearance-none"
-                  style={{ background: "rgba(0,0,0,0.3)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
-                >
-                  {destoEligible.map((c) => (
-                    <option key={c.characterId} value={c.characterId}>{c.characterName}</option>
-                  ))}
-                </select>
-                <ChevronDown size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--text-muted)" }} />
-              </div>
-            </div>
-          )}
           <button
             onClick={fetchColonies}
             disabled={loading}
@@ -341,8 +303,7 @@ function AutoMode() {
               key={`${characterId}-${planet.planetId}`}
               planet={planet}
               characterName={characterName}
-              destoCharId={destoCharId}
-              hasDestoChar={destoEligible.length > 0}
+              characterId={characterId}
             />
           ))}
         </div>
