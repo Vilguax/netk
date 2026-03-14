@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { CCU_GRID, IPC_MAX_PLANETS, STRUCTURE_COSTS, calculateConstraints } from "@/lib/pi-skills";
@@ -105,11 +105,54 @@ const ABBR_MAP: Record<string, string> = {
 
 function Abbr({ children, full, color }: { children: React.ReactNode; full?: string; color?: string }) {
   const [show, setShow] = useState(false);
+  const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties | null>(null);
+  const triggerRef = useRef<HTMLSpanElement | null>(null);
+  const tooltipRef = useRef<HTMLSpanElement | null>(null);
   const label = typeof children === "string" ? (full ?? ABBR_MAP[children] ?? children) : full;
+
+  useEffect(() => {
+    if (!show || !triggerRef.current || !tooltipRef.current) return;
+
+    const updatePosition = () => {
+      if (!triggerRef.current || !tooltipRef.current) return;
+
+      const triggerRect = triggerRef.current.getBoundingClientRect();
+      const tooltipRect = tooltipRef.current.getBoundingClientRect();
+      const gutter = 12;
+      const left = Math.min(
+        window.innerWidth - tooltipRect.width - gutter,
+        Math.max(gutter, triggerRect.left)
+      );
+      const top = Math.max(gutter, triggerRect.top - tooltipRect.height - 6);
+
+      setTooltipStyle({
+        position: "fixed",
+        left,
+        top,
+        marginBottom: 0,
+      });
+    };
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [show]);
+
   return (
-    <span className="relative inline-block"
+    <span
+      ref={triggerRef}
+      className="relative inline-block"
       onMouseEnter={() => setShow(true)}
-      onMouseLeave={() => setShow(false)}>
+      onMouseLeave={() => {
+        setShow(false);
+        setTooltipStyle(null);
+      }}
+    >
       <strong style={{
         color: color ?? "var(--text-primary)",
         borderBottom: "1px dotted rgba(255,255,255,0.3)",
@@ -118,10 +161,11 @@ function Abbr({ children, full, color }: { children: React.ReactNode; full?: str
         {children}
       </strong>
       {show && label && (
-        <span className="absolute bottom-full left-1/2 pointer-events-none z-50"
+        <span
+          ref={tooltipRef}
+          className="pointer-events-none z-50"
           style={{
-            transform: "translateX(-50%)",
-            marginBottom: 5,
+            position: "fixed",
             background: "rgba(8,12,20,0.98)",
             border: "1px solid rgba(255,255,255,0.12)",
             borderRadius: 6,
@@ -130,6 +174,8 @@ function Abbr({ children, full, color }: { children: React.ReactNode; full?: str
             fontSize: 11,
             color: "var(--text-primary)",
             boxShadow: "0 4px 16px rgba(0,0,0,0.6)",
+            visibility: tooltipStyle ? "visible" : "hidden",
+            ...tooltipStyle,
           }}>
           {label}
         </span>
