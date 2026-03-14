@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Calculator, Globe, Clock, BookOpen, Radar } from "lucide-react";
+import { Calculator, Globe, Clock, BookOpen, Radar, GitBranch } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/",          label: "Calculateur",  icon: Calculator },
   { href: "/finder",    label: "Finder",       icon: Radar },
   { href: "/skills",    label: "Skills",       icon: BookOpen },
   { href: "/timers",    label: "Timers",       icon: Clock },
+  { href: "/craft",     label: "Craft",        icon: GitBranch },
   { href: "/colonies",  label: "Colonies",     icon: Globe,      soon: true },
 ];
 
